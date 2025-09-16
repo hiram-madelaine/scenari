@@ -5,8 +5,7 @@
             [kaocha.type.scenari]
             [scenari.v2.some-glue-ns]
             [kaocha.repl :as krepl]
-            [testit.core :refer :all])
-  (:import (java.io StringWriter)))
+            [testit.core :refer :all]))
 
 (def side-effect-atom (atom 0))
 (def scenario-side-effect-atom (atom 0))
@@ -66,7 +65,6 @@
   (v2/run-features)
   (v2/run-features #'scenari.v2.feature-test/my-feature)
   (sc-test/run-features #'scenari.v2.feature-test/short-feature)
-
   (krepl/test-plan)
   (krepl/run-all)
   (krepl/run :scenario))
