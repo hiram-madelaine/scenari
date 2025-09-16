@@ -184,8 +184,7 @@ By defining a test type in your kaocha configuration file (`tests.edn` by defaul
                   :type                              :kaocha.type/scenari
                   :kaocha/source-paths               ["src"]
                   :kaocha/test-paths                 ["test/scenario"]
-                  :kaocha.type.scenari/glue-paths    ["test/scenario/glue"]
-                  :kaocha.type.scenari/feature-paths ["resources/scenarios"]}]}
+                  :kaocha.type.scenari/glue-paths    ["test/scenario/glue"]}]}
 ```
 You are able to launch your scenario using kaocha repl utility function
 
