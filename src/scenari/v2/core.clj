@@ -14,12 +14,15 @@
 ;;          LOAD
 ;; ------------------------
 
-(defn tab-params->params [tab-params]
-  (when tab-params
-    (let [[_ [_ & headers] & rows] tab-params
-          param-names (map (comp keyword string/trim) headers)
+(defn tab-params->params [[param-type [_ & headers] & rows]]
+  (when (= :tab_params param-type)
+    (let [param-names (map (comp keyword string/trim) headers)
           params-values (map (comp #(map string/trim %) rest) rows)]
       [{:type :table :val (mapv #(apply hash-map (interleave param-names %)) params-values)}])))
+
+(defn doc-string->params [[param-type [_ content]]]
+  (when (= :doc_string param-type)
+    [{:type :doc-string :val (string/trim content)}]))
 
 (defn sentence-params->params [[type val]] {:type :value :val (condp = type
                                                                     :number (read-string val)
@@ -86,12 +89,13 @@
      :narrative         (fn [& n] {:feature (string/join " " n)})
      :sentence          str
      :steps             (fn [& contents]
-                          {:steps (vec (map-indexed (fn [i [_ [step-key] sentence tab-params]]
+                          {:steps (vec (map-indexed (fn [i [_ [step-key] sentence data-param]]
                                                       (let [step (merge {:sentence-keyword step-key
                                                                          :sentence         sentence
                                                                          :raw              (str (string/capitalize (name step-key)) " " sentence)}
                                                                         (when-let [params (into (find-sentence-params sentence)
-                                                                                                (tab-params->params tab-params))]
+                                                                                                (or (tab-params->params data-param)
+                                                                                                    (doc-string->params data-param)))]
                                                                           {:params params}))]
                                                         (-> step
                                                             (assoc :order i)

@@ -8,6 +8,12 @@ Feature: foo bar kix
       | 6    | 2      |
     Then I receive a response with an id 56422
     Then a location URL
+
   Scenario: another
     Given I foo
 
+  Scenario: scenario with doc string
+    Given a doc string
+    """
+    This is markdown
+    """

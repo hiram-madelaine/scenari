@@ -69,17 +69,21 @@ Each step within a scenario is represented as a map:
 
 ## Parameters
 
-Parameters extracted from steps come in two types:
+Parameters extracted from steps come in three types:
 
 ```clojure
 ;; Value parameters (extracted from step text)
-{:type :value, :val "some string"} 
+{:type :value, :val "some string"}
 {:type :value, :val 42}
 
 ;; Table parameters
-{:type :table, 
- :val [{:header1 "value1", :header2 "value2"}, 
+{:type :table,
+ :val [{:header1 "value1", :header2 "value2"},
        {:header1 "value3", :header2 "value4"}]}
+
+;; Doc string parameters (multi-line text blocks)
+{:type :doc-string,
+ :val "This is a multi-line\ntext block that can contain\nany content including markdown"}
 ```
 
 ## Glue Metadata

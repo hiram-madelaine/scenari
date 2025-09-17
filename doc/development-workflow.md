@@ -80,6 +80,35 @@ Scenario Outline: Apply tax based on location
     | 100        | AU       | 110         |
 ```
 
+### Example with Doc Strings
+
+Doc strings (delimited by triple quotes) are useful for passing multi-line text content:
+
+```gherkin
+Scenario: Create a blog post with markdown
+  Given I am logged in as an author
+  When I create a new blog post with content:
+    """
+    # Introduction to Clojure
+
+    Clojure is a dynamic, general-purpose programming language.
+
+    ## Key Features
+    - Functional programming
+    - Immutable data structures
+    - Runs on the JVM
+    """
+  Then the post should be formatted as HTML
+  And the title should be "Introduction to Clojure"
+```
+
+Doc strings are commonly used for:
+- JSON or XML payloads
+- Markdown or HTML content
+- Multi-line configuration
+- Email templates
+- Test data fixtures
+
 ## 2. Defining Feature References
 
 After writing the feature file, you need to reference it in your Clojure code using `deffeature`.
@@ -145,13 +174,25 @@ Scenari supports various parameter types in step definitions:
 - `{string}`: Matches a quoted string and passes it as a String
 - `{number}`: Matches a number and passes it as a Number
 - Table data: Automatically passed as a vector of maps
+- Doc strings: Automatically passed as a multi-line string
 
 ### Working with Tables
 
 ```clojure
 (defgiven "the following products in catalog:" [state table-data]
-  (assoc state :products 
+  (assoc state :products
     (into {} (map (fn [row] [(:product row) row]) table-data))))
+```
+
+### Working with Doc Strings
+
+```clojure
+(defwhen "I create a new blog post with content:" [state doc-string]
+  ;; doc-string contains the multi-line text from the feature file
+  (let [parsed-post (parse-markdown doc-string)]
+    (assoc state :post {:content doc-string
+                        :title (extract-title parsed-post)
+                        :html (markdown->html doc-string)})))
 ```
 
 ### State Passing Between Steps

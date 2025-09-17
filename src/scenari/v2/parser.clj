@@ -58,8 +58,10 @@
            <space>            = ' '  | '\t'
            <eol>              = #'\r?\n'
            scenario_sentence  = #'.*'
-           step_sentence      = step_keywords sentence (<eol> tab_params)?
+           step_sentence      = step_keywords sentence (<eol> (tab_params | doc_string))?
            sentence           = #'.*'
+           doc_string         = <whitespace?> <'\"\"\"'> <eol> doc_content <whitespace?> <'\"\"\"'>
+           doc_content        = #'(?:[^\"]+|\"(?!\"\"))*'
            examples           = <whitespace?> examples-keywords <eol> header row* <eol?>
            <examples-keywords>= <" (kw-translations :examples) ">
            tab_params         = <whitespace?> header row* <eol?>

@@ -225,5 +225,38 @@ Feature: feature with comments
              [:step_sentence [:given] [:sentence "a step"]]
              [:step_sentence [:when] [:sentence "another step"]]]]]])))
 
-(comment
-  (run-tests))
+(deftest feature-with-doc-string-test
+  (testing "Parsing features with doc strings"
+    (is (= (gherkin "
+Feature: feature with markdown
+  Scenario: scenario with markdown
+    Given a markdown
+    \"\"\"
+    This is markdown
+    \"\"\"")
+           [:SPEC
+            [:narrative "feature with markdown"]
+            [:scenarios
+             [:scenario
+              [:scenario_sentence " scenario with markdown"]
+              [:steps
+               [:step_sentence [:given] [:sentence "a markdown"]
+                [:doc_string [:doc_content "    This is markdown\n    "]]]]]]]))
+
+    (is (= (gherkin "
+Scenario: scenario with multiline doc string
+  When I provide documentation
+  \"\"\"
+  Line 1
+  Line 2
+  Line 3
+  \"\"\"
+  Then it should be processed")
+           [:SPEC
+            [:scenarios
+             [:scenario
+              [:scenario_sentence " scenario with multiline doc string"]
+              [:steps
+               [:step_sentence [:when] [:sentence "I provide documentation"]
+                [:doc_string [:doc_content "  Line 1\n  Line 2\n  Line 3\n  "]]]
+               [:step_sentence [:then] [:sentence "it should be processed"]]]]]]))))

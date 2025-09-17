@@ -17,6 +17,8 @@
               (fact 1 => side-effect-atom)
               state))
 
+(v2/defgiven "a doc string"  [state doc-string] (is (= "This is markdown" doc-string)) state)
+
 (defn init-side-effect [] (reset! side-effect-atom 1))
 (defn pre-scenario-run-side-effect [] (reset! scenario-side-effect-atom 1))
 (defn post-scenario-run-side-effect [] (reset! scenario-side-effect-atom 1))
@@ -60,11 +62,12 @@
                                     :status    :success})))))
 
 (comment
+  (get-in (meta #'my-feature) [:scenari/feature-ast :scenarios 0])
   (remove-ns 'scenari.v2.feature-test)
   (meta #'scenari.v2.feature-test/my-feature)
   (v2/run-features)
   (v2/run-features #'scenari.v2.feature-test/my-feature)
-  (sc-test/run-features #'scenari.v2.feature-test/short-feature)
+  (sc-test/run-features #'scenari.v2.feature-test/my-feature)
   (krepl/test-plan)
   (krepl/run-all)
   (krepl/run :scenario))
