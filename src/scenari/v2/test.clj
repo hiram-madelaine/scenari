@@ -55,8 +55,8 @@
                                            (println (utils/color-str :red (:ex m)))))
 
 (defmethod t/report :missing-step [{:keys [step-sentence]}] (t/with-test-out
-                                                              (println (utils/color-str :red "Missing step for : " (get step-sentence :raw)))
-                                                              (println (utils/color-str :red (generate-step-fn {:sentence (get step-sentence :raw)})))))
+                                                              (println (utils/color-str :red "Missing step for : " (:raw step-sentence)))
+                                                              (println (utils/color-str :red (generate-step-fn step-sentence)))))
 
 (defn run-feature [feature]
   (when-let [{{:keys [feature scenarios pre-run]} :scenari/feature-ast} (meta feature)]

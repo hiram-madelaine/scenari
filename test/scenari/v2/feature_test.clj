@@ -62,7 +62,6 @@
                                     :status    :success})))))
 
 (comment
-  (get-in (meta #'my-feature) [:scenari/feature-ast :scenarios 0])
   (remove-ns 'scenari.v2.feature-test)
   (meta #'scenari.v2.feature-test/my-feature)
   (v2/run-features)

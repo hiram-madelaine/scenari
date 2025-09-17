@@ -81,22 +81,24 @@
 
 (defmethod read-source :feature-as-str [source] source)
 
+(defn step->map [[_step-sentence [step-key] [_sentence sentence] data-param]]
+  (merge {:sentence-keyword step-key
+          :sentence         sentence
+          :raw              (str (string/capitalize (name step-key)) " " sentence)}
+         (when-let [params (into (find-sentence-params sentence)
+                                 (or (tab-params->params data-param)
+                                     (doc-string->params data-param)))]
+           {:params params})))
+
 (defn ->feature-ast [source {:keys [pre-run pre-scenario-run post-scenario-run default-scenario-state] :as _options} ns-feature]
   (insta-trans/transform
     {:SPEC              (fn [& s] (apply merge s))
      :annotation        (fn [s] s)
      :annotations       (fn [& s] {:annotations (set s)})
      :narrative         (fn [& n] {:feature (string/join " " n)})
-     :sentence          str
      :steps             (fn [& contents]
-                          {:steps (vec (map-indexed (fn [i [_ [step-key] sentence data-param]]
-                                                      (let [step (merge {:sentence-keyword step-key
-                                                                         :sentence         sentence
-                                                                         :raw              (str (string/capitalize (name step-key)) " " sentence)}
-                                                                        (when-let [params (into (find-sentence-params sentence)
-                                                                                                (or (tab-params->params data-param)
-                                                                                                    (doc-string->params data-param)))]
-                                                                          {:params params}))]
+                          {:steps (vec (map-indexed (fn [i content]
+                                                      (let [step (step->map content)]
                                                         (-> step
                                                             (assoc :order i)
                                                             (assoc :glue (glue/find-glue-by-step-regex step ns-feature)))))
