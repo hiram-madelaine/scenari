@@ -52,8 +52,7 @@
           ::testable/id   (keyword (scenario->id scenario))
           ::testable/desc (or (:scenario-name scenario) "")
           ::feature       (keyword (path->id (str (:project-directory document) (:file document))))
-          ::file          (str (:project-directory document) (:file document))
-          }))
+          ::file          (str (:project-directory document) (:file document))}))
 
 (defn- require-all-ns [paths]
   (->> paths
@@ -64,11 +63,17 @@
 (defmethod testable/-load :kaocha.type/scenari [testable]
   (require-all-ns (::glue-paths testable))
   (let [tests (for [test-path (:kaocha/test-paths testable)
-                    {{:keys [feature scenarios pre-run]} :scenari/feature-ast
-                     feature-content                     :scenari/raw-feature
-                     :as                                 feature-meta} (find-features-meta-in-dir test-path)]
+                    {{:keys [feature scenarios pre-run annotations]} :scenari/feature-ast
+                     feature-content                                 :scenari/raw-feature
+                     :as                                             feature-meta} (find-features-meta-in-dir test-path)]
                 {::testable/type         :kaocha.type/scenari-feature
                  ::testable/id           (keyword (str (:ns feature-meta)) (str (:name feature-meta)))
+                 ;; allows `--focus <ns>` to select every feature of a namespace
+                 ::testable/aliases     [(keyword (str (:ns feature-meta)))]
+                 ;; var metadata (deffeature ^:tag ...) + gherkin @annotations,
+                 ;; so `--focus-meta`/`--skip-meta` work on features
+                 ::testable/meta         (merge (dissoc feature-meta :scenari/raw-feature :scenari/feature-ast :test)
+                                                (zipmap (map keyword annotations) (repeat true)))
                  ::testable/desc         feature
                  :kaocha.test-plan/tests (mapv #(scenario->testable feature-content %) scenarios)
                  ::pre-run               pre-run})]
@@ -125,8 +130,6 @@
 (s/def :kaocha.type/scenari-scenario any?)
 (s/def :kaocha.type/scenari-step any?)
 
-
-
 (hierarchy/derive! ::begin-feature :kaocha/begin-group)
 (hierarchy/derive! ::end-feature :kaocha/end-group)
 
@@ -136,7 +139,6 @@
 (hierarchy/derive! :kaocha.type/scenari :kaocha.testable.type/suite)
 (hierarchy/derive! :kaocha.type/scenari-feature :kaocha.testable.type/group)
 (hierarchy/derive! :kaocha.type/scenari-scenario :kaocha.testable.type/leaf)
-
 
 (comment
   (in-ns 'kaocha.type.scenari)

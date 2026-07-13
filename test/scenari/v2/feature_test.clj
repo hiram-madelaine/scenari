@@ -11,11 +11,11 @@
 (def scenario-side-effect-atom (atom 0))
 
 (v2/defwhen #"I foo" [state]
-            (let [scenario-side-effect @scenario-side-effect-atom
-                  side-effect-atom @side-effect-atom]
-              (fact 1 => scenario-side-effect)
-              (fact 1 => side-effect-atom)
-              state))
+  (let [scenario-side-effect @scenario-side-effect-atom
+        side-effect-atom @side-effect-atom]
+    (fact 1 => scenario-side-effect)
+    (fact 1 => side-effect-atom)
+    state))
 
 (v2/defgiven "a doc string"  [state doc-string] (is (= "This is markdown" doc-string)) state)
 
@@ -24,18 +24,26 @@
 (defn post-scenario-run-side-effect [] (reset! scenario-side-effect-atom 1))
 
 (v2/deffeature my-feature "test/scenari/v2/example.feature"
-               {:pre-run           [#'init-side-effect]
-                :pre-scenario-run  [#'pre-scenario-run-side-effect]
-                :post-scenario-run [#'post-scenario-run-side-effect]
-                :post-run          [#'init-side-effect]})
+  {:pre-run           [#'init-side-effect]
+   :pre-scenario-run  [#'pre-scenario-run-side-effect]
+   :post-scenario-run [#'post-scenario-run-side-effect]
+   :post-run          [#'init-side-effect]})
 
 (v2/defthen "My initial state contains foo"  [state] (is (= state {:foo 1})) state)
 
 (v2/deffeature short-feature
-               "Feature: feature description
+  "Feature: feature description
   Scenario: Scenario description
       Then My initial state contains foo"
-               {:default-scenario-state {:foo 1}})
+  {:default-scenario-state {:foo 1}})
+
+;; used by kaocha filtering: `--focus-meta var-tagged` / `--focus-meta annotated`
+(v2/deffeature ^:var-tagged tagged-feature
+  "@annotated
+Feature: tagged feature
+  Scenario: tagged scenario
+      Then My initial state contains foo"
+  {:default-scenario-state {:foo 1}})
 
 (deftest scenari-runner-test
   (testing "Using scenari runner"
@@ -43,9 +51,7 @@
       (let [[feature-result] (v2/run-features #'scenari.v2.feature-test/short-feature)]
         (fact "return an execution tree with status :success"
               feature-result =in=> {:feature   "feature description",
-                                    :scenarios [{
-                                                 ;:id            "3e2b3c21-2b6c-407a-90f7-f10b8f16e91e",
-                                                 :pre-run       [],
+                                    :scenarios [{:pre-run       [],
                                                  :post-run      [],
                                                  :default-state {:foo 1},
                                                  :scenario-name " Scenario description",
