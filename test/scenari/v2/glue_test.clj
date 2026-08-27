@@ -1,6 +1,15 @@
 (ns scenari.v2.glue-test
   (:require [clojure.test :refer :all]
+            [scenari.v2.core]
             [scenari.v2.glue :as glue]))
+
+;; all-glues cache tests
+(deftest all-glues-cache-invalidation-test
+  (testing "a step defined in an already loaded namespace shows up in all-glues"
+    (glue/all-glues)                                        ;; warm up the cache
+    (binding [*ns* (find-ns 'scenari.v2.glue-test)]          ;; no new namespace, so the ns count doesn't change
+      (eval '(scenari.v2.core/defgiven "a step defined after the cache was warmed up" [state] state)))
+    (is (some #(= "a step defined after the cache was warmed up" (:step %)) (glue/all-glues)))))
 
 ;; ns-proximity-score tests
 (deftest ns-proximity-score-test

@@ -2,13 +2,35 @@
   (:require [clojure.test :as t]
             [clojure.string :as string]))
 
-(defn all-glues
-  "Find all glue functions (step definitions) in all loaded namespaces"
+(def ^:private glues-cache (atom nil))
+
+(defn invalidate-glues-cache!
+  "Invalidate the `all-glues` cache. Called by the step definition macros: a glue
+   can appear in an already loaded namespace, which the namespace count alone
+   cannot detect."
   []
-  (->> (all-ns)
-       (mapcat #(vals (ns-publics %)))
-       (map #(assoc (meta %) :ref %))
-       (filter #(contains? % :step))))
+  (reset! glues-cache nil))
+
+(defn all-glues
+  "Find all glue functions (step definitions) in all loaded namespaces.
+
+   Resolving the glue of every step of every feature means scanning all the public
+   vars of all the loaded namespaces once per step, which dominates the loading
+   time of a large feature suite. The result is therefore memoized, and recomputed
+   as soon as a namespace is loaded or a step is (re)defined."
+  []
+  (let [nss (all-ns)
+        k   (count nss)
+        {:keys [ns-count glues]} @glues-cache]
+    (if (= ns-count k)
+      glues
+      (let [computed (into []
+                           (comp (mapcat #(vals (ns-publics %)))
+                                 (map #(assoc (meta %) :ref %))
+                                 (filter #(contains? % :step)))
+                           nss)]
+        (reset! glues-cache {:ns-count k :glues computed})
+        computed))))
 
 (defn ns-proximity-score
   "Calculate proximity score between two namespaces based on common segments"

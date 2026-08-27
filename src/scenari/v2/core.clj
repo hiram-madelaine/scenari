@@ -202,17 +202,21 @@
 ;; TODO make a step evaluable as a standalone fun
 ;; TODO duplication, should be resolve with a macro
 (defmacro defgiven [regex params & body]
-  `(defn ~(-> (re->symbol regex)
-              (vary-meta assoc :step regex)) ~params (into [] [~@body])))
+  `(do (defn ~(-> (re->symbol regex)
+                  (vary-meta assoc :step regex)) ~params (into [] [~@body]))
+       (glue/invalidate-glues-cache!)))
 
 (defmacro defand [regex params & body]
-  `(defn ~(-> (re->symbol regex)
-              (vary-meta assoc :step regex)) ~params (into [] [~@body])))
+  `(do (defn ~(-> (re->symbol regex)
+                  (vary-meta assoc :step regex)) ~params (into [] [~@body]))
+       (glue/invalidate-glues-cache!)))
 
 (defmacro defwhen [regex params & body]
-  `(defn ~(-> (re->symbol regex)
-              (vary-meta assoc :step regex)) ~params (into [] [~@body])))
+  `(do (defn ~(-> (re->symbol regex)
+                  (vary-meta assoc :step regex)) ~params (into [] [~@body]))
+       (glue/invalidate-glues-cache!)))
 
 (defmacro defthen [regex params & body]
-  `(defn ~(-> (re->symbol regex)
-              (vary-meta assoc :step regex)) ~params (into [] [~@body])))
+  `(do (defn ~(-> (re->symbol regex)
+                  (vary-meta assoc :step regex)) ~params (into [] [~@body]))
+       (glue/invalidate-glues-cache!)))
