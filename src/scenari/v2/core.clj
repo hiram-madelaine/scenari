@@ -102,6 +102,8 @@
 
 (defn- node? [tag x] (and (vector? x) (= tag (first x))))
 
+(defn- child [tag node] (some #(when (node? tag %) %) (rest node)))
+
 (defn- expand-scenario
   "Scenario outline: a scenario carrying Examples tables becomes one scenario per
   row of every table -- gherkin allows several blocks, typically to label the
@@ -111,11 +113,24 @@
   [scenario]
   (if-let [examples (seq (filter #(node? :examples %) (rest scenario)))]
     (let [base (into [:scenario] (remove #(node? :examples %)) (rest scenario))]
+      ;; sans cette garde le scenario disparait de la feature, et c'est le
+      ;; garde-fou "Feature has no scenario" qui parle, en accusant la
+      ;; reconnaissance des mots-cles
+      (when (some #(empty? (nnext %)) examples)
+        (throw (ex-info (str "Examples table has no row, scenario"
+                             (second (child :scenario_sentence scenario))
+                             " would expand to nothing")
+                        {:scenario scenario})))
       (for [[_ [_ & headers] & rows] examples
             [_ & values] rows
             :let [params (zipmap (map #(str "<" (cell %) ">") headers)
                                  (map cell values))]]
-        (walk/postwalk #(if (string? %) (reduce-kv string/replace % params) %) base)))
+        ;; une seule passe : reduce-kv re-substituait dans le texte deja
+        ;; substitue, dans l'ordre de la hash-map
+        (walk/postwalk #(if (string? %)
+                          (string/replace % #"<[^>]*>" (fn [m] (get params m m)))
+                          %)
+                       base)))
     [scenario]))
 
 (defn- with-background
@@ -127,8 +142,6 @@
             (into [:steps] (concat bg-steps (rest node)))
             node))
         scenario))
-
-(defn- child [tag node] (some #(when (node? tag %) %) (rest node)))
 
 (defn- with-description
   "A Rule's description is context for every scenario it groups, and there is no

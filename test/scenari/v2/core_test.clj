@@ -95,6 +95,27 @@
                                  {} *ns*))]
       (is (= [" s 1" " s 2" " s 9"] (map :scenario-name scenarios))))))
 
+(t/deftest examples-substitution-test
+  (t/testing "placeholders are substituted in one pass: a value that looks like
+  a placeholder must not be substituted again"
+    (let [scenarios (:scenarios (v2/->feature-ast
+                                 (str "Feature: f\n"
+                                      "Scenario Outline: s\n"
+                                      "Given <a> then <b>\n"
+                                      "Examples:\n"
+                                      "| a | b |\n"
+                                      "| <b> | 42 |\n")
+                                 {} *ns*))]
+      (is (= ["<b> then 42"] (map #(:sentence (first (:steps %))) scenarios)))))
+
+  (t/testing "an Examples table with a header but no row names the scenario,
+  instead of making it vanish and letting the feature-level guard blame keyword
+  recognition"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo #"Examples table has no row, scenario s"
+         (v2/->feature-ast "Feature: f\nScenario Outline: s\nGiven <x>\nExamples:\n| x |\n"
+                           {} *ns*)))))
+
 (t/deftest background-test
   (t/testing "background steps are spliced at the head of every scenario"
     (let [scenarios (:scenarios (v2/->feature-ast
