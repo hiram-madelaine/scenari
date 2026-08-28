@@ -36,6 +36,14 @@
   ([kw]
    (kw-translations kw kw-translations-data)))
 
+(def ^:private words-regex
+  "Un mot est tout ce qui n'ouvre pas un token : chiffres, guillemets, chevrons,
+  crochets et accolades restent lisibles comme number, string, parameter, vector
+  et map. Le reste - ponctuation, accents - appartient aux mots. L'ancienne
+  liste blanche rejetait `,` `:` `(` `)` et la plupart des accents, ce qui
+  faisait echouer le chargement du namespace sur un step sans glue."
+  "#'[^0-9\"<>{}$\\[\\]\\r\\n]+'")
+
 (def gherkin (insta/parser
                       (str "
            SPEC = <whitespace?> <comment?> annotations? narrative? <blanks?> description? <whitespace?> <comment?> background? scenarios rules?
@@ -95,7 +103,7 @@
 
 (def sentence (insta/parser
                 (str "SENTENCE         = <whitespace>? (words | data_group | parameter)* <eol>?
-                             words            = #'[a-zA-Z./\\_\\-\\'èéêàûù ]+'
+                             words            = " words-regex "
                              <parameter_name> = #'[a-zA-Z\"./\\_\\- ]+'
                              parameter        = <'<'> parameter_name <'>'> | <'${'> parameter_name <'}'>
                              string           = <'\"'> #'[^\"]*' <'\"'>
@@ -115,7 +123,7 @@
                              when             = <" (kw-translations :when) ">
                              then             = <" (kw-translations :then) ">
                              and              = <" (kw-translations :and) ">
-                             words            = #'[a-zA-Z./\\_\\-\\'èéêàûù ]+'
+                             words            = " words-regex "
                              <parameter_name> = #'[a-zA-Z\"./\\_\\- ]+'
                              parameter        = <'<'> parameter_name <'>'> | <'${'> parameter_name <'}'>
                              string           = <'\"'> #'[^\"]*' <'\"'>

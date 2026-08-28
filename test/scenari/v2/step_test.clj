@@ -35,3 +35,16 @@
                                                | iPhone 7     | telephone    |"))
                     "(defwhen \"I create a new product with id {number}\"  [state arg0 arg1]  (do \"something\"))")))
 
+(t/deftest ponctuation-test
+  (t/testing "ponctuation et accents dans un step sans glue : le squelette est
+  généré, au lieu d'une ClassCastException qui faisait échouer le chargement du
+  namespace au premier step non collé"
+    (t/is (= "(defgiven \"une étape, avec une virgule (et des parenthèses) !\"  [state ]  (do \"setup or assert correct tested component state\"))"
+             (generate-step-fn (->step "Given une étape, avec une virgule (et des parenthèses) !"))))
+    (t/is (= "(defwhen \"I pay {string} euros: c est fini.\"  [state arg0]  (do \"something\"))"
+             (generate-step-fn (->step "When I pay \"10\" euros: c est fini.")))))
+
+  (t/testing "une phrase que la grammaire ne sait vraiment pas découper lève un
+  message lisible"
+    (t/is (thrown-with-msg? clojure.lang.ExceptionInfo #"Cannot parse the step sentence"
+                            (generate-step-fn {:raw "Given a < b" :params []})))))

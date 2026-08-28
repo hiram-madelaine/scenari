@@ -11,9 +11,13 @@
   [step-sentence]
   (let [{:keys [raw params]} step-sentence
         sentence-ast (parser/step raw)
+        ;; ex-info veut une String : passer le :reason d'instaparse, qui est un
+        ;; vecteur, faisait remonter une ClassCastException a la place du step manquant
+        _ (when (insta/failure? sentence-ast)
+            (throw (ex-info (str "Cannot parse the step sentence: " raw)
+                            {:parsed-text step-sentence
+                             :failure     (insta/get-failure sentence-ast)})))
         [_ [step-type] & sentence-elements] sentence-ast]
-    (if (insta/failure? sentence-ast)
-      (do (prn (insta/get-failure sentence-ast)) (throw (ex-info (:reason (insta/get-failure sentence-ast)) {:parsed-text step-sentence}))))
     (str (case step-type
            :given "(defgiven \""
            :and   "(defand \""
