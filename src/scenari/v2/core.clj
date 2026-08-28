@@ -123,18 +123,30 @@
             node))
         scenario))
 
+(defn- child [tag node] (some #(when (node? tag %) %) (rest node)))
+
+(defn- rule-scenarios
+  "A Rule only groups scenarios and may carry a Background of its own; scenari
+  has no hierarchy level for it, so its scenarios are lifted into the feature."
+  [rule]
+  (let [bg-steps (rest (child :steps (child :background rule)))]
+    (map #(with-background bg-steps %) (rest (child :scenarios rule)))))
+
 (defn- normalize-scenarios
-  "Pre-pass on the parse tree: splice in the Background and expand the scenario
-  outlines, so the transform below only ever sees plain scenarios."
+  "Pre-pass on the parse tree: lift the Rules, splice in the Background and
+  expand the scenario outlines, so the transform below only ever sees plain
+  scenarios."
   [spec]
-  (let [bg-steps (rest (second (some #(when (node? :background %) %) (rest spec))))]
-    (into [] (comp (remove #(node? :background %))
+  (let [bg-steps (rest (child :steps (child :background spec)))
+        scenarios (concat (rest (child :scenarios spec))
+                          (mapcat rule-scenarios (rest (child :rules spec))))]
+    (into [] (comp (remove #(or (node? :background %) (node? :rules %)))
                    (map (fn [node]
                           (if (node? :scenarios node)
                             (into [:scenarios]
                                   (comp (map #(with-background bg-steps %))
                                         (mapcat expand-scenario))
-                                  (rest node))
+                                  scenarios)
                             node))))
           spec)))
 

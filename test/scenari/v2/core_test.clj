@@ -98,3 +98,23 @@
              (map #(map :sentence (:steps %)) scenarios)))
       (is (= [[0 1 2] [0 1 2]] (map #(map :order (:steps %)) scenarios))
           "spliced steps are renumbered, the runner relies on :order"))))
+
+(t/deftest rule-test
+  (t/testing "Rule scenarios are lifted into the feature, with the rule's own background"
+    (let [scenarios (:scenarios (v2/->feature-ast
+                                 (str "Feature: f\n"
+                                      "Background:\n"
+                                      "Given feature setup\n"
+                                      "Rule: r1\n"
+                                      "  Background:\n"
+                                      "  Given rule setup\n"
+                                      "  Example: e1\n"
+                                      "  When x\n"
+                                      "Rule: r2\n"
+                                      "  Example: e2\n"
+                                      "  When y\n")
+                                 {} *ns*))]
+      (is (= [[" e1" ["feature setup" "rule setup" "x"]]
+              [" e2" ["feature setup" "y"]]]
+             (map (juxt :scenario-name #(map :sentence (:steps %))) scenarios))
+          "the feature background comes first, then the rule's own"))))

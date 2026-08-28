@@ -96,6 +96,14 @@ Given a")
     (is (ok? "Feature: f\nBackground: un nom\nGiven a\nScenario: s\nGiven b"))
     (is (ok? "Feature: f\nContexte :\nEtant donné que a\nScénario : s\nQuand b")))
 
+  (testing "Rule, avec description, Background et tags"
+    (is (ok? "Feature: f\nRule: r\nExample: e\nWhen x"))
+    (is (ok? (str "Feature: f\nBackground:\nGiven setup\n"
+                  "Rule: r1\n  une description\n  Background:\n  Given rule setup\n  Example: e1\n  When x\n"
+                  "@tagged\nRule: r2\n  Example: e2\n  When y\n")))
+    (is (ok? "Feature: f\nRègle : r\n  Scénario : s\n  Quand x"))
+    (is (ok? "Feature: f\nScenario: avant les rules\nGiven z\nRule: r\nExample: e\nWhen x")))
+
   (testing "section Examples"
     (is (ok? "Feature: f\nScenario: s\nGiven <x>\nExamples:\n| x |\n| 1 |")))
 
@@ -119,9 +127,6 @@ Given a")
     (is (ok? "Scenario: s\nGiven a"))))
 
 (deftest non-supporte-test
-  (testing "Rule"
-    (is (ko? "Feature: f\nRule: r\nScenario: s\nGiven a")))
-
   (testing "tags au niveau scénario"
     (is (ko? "Feature: f\n@tag\nScenario: s\nGiven a")))
 

@@ -132,9 +132,13 @@ This data structure provides a flexible representation that preserves all inform
 
 ## Constructs resolved at parse time
 
-`Background` and `Scenario Outline` have no representation in this structure: a
-pre-pass on the parse tree normalizes them away before the feature map is built.
+`Background`, `Rule` and `Scenario Outline` have no representation in this
+structure: a pre-pass on the parse tree normalizes them away before the feature
+map is built.
 
-- **Background** — its steps are spliced at the head of every scenario's `:steps`.
+- **Background** — its steps are spliced at the head of every scenario's `:steps`
+  (the feature's background first, then the enclosing rule's, if any).
+- **Rule** — only groups scenarios, so its scenarios are lifted into the
+  feature's `:scenarios`. The rule name is not kept.
 - **Scenario Outline** — becomes one scenario per `Examples` row, with the
   `<placeholders>` substituted throughout the scenario, its name included.
