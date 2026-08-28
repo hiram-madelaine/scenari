@@ -11,10 +11,10 @@ Statuts : `TODO` · `WIP` · `OK` (corrigé + vérifié) · `SKIP` (écarté, mo
 | id | Statut | Lot | Fichier | Problème | Vérif. |
 |----|--------|-----|---------|----------|--------|
 | F01 | OK | A | `parser.clj:51` | Parsing exponentiel / OOM sur descriptions de scénario | perf |
-| F02 | TODO | A | `parser.clj:87` | `row` refuse espaces en fin de ligne et lignes vides | conformance |
-| F07 | TODO | A | `parser.clj:82` | `Examples: <nom>` ne parse pas | conformance |
-| F08 | TODO | A | `parser.clj:64` | Un seul bloc `Examples` par Outline | conformance |
-| F13 | TODO | A | `parser.clj:81` | ``` ``` ``` impossible dans un docstring `"""` | conformance |
+| F02 | OK | A | `parser.clj:87` | `row` refuse espaces en fin de ligne et lignes vides | conformance |
+| F07 | OK | A | `parser.clj:82` | `Examples: <nom>` ne parse pas | conformance |
+| F08 | OK | A | `parser.clj:64` | Un seul bloc `Examples` par Outline | conformance |
+| F13 | OK | A | `parser.clj:81` | ``` ``` ``` impossible dans un docstring `"""` | conformance |
 | F03 | OK | B | `kaocha/type/scenari.clj:84` | `:post-run` feature jamais exécuté sous kaocha | feature_test |
 | F04 | OK | B | `core.clj:267` | `run-features` renvoie un `map` paresseux | feature_test |
 | F10 | OK | B | `core.clj:259`, `test.clj:183` | `:post-run` hors `finally` | feature_test |
@@ -225,3 +225,12 @@ SCENARI_CORPUS=<corpus> ./test.sh           # filet de régression grammaire
   (feature + scénario) et `kaocha.type.scenari/-run` ; `-load` porte désormais
   `::post-run` ; `run-features` passe en `mapv`. Tests `post-run-test` (3 runners) et
   `run-hooks-test`.
+- **F02** — 2026-08-29 — `cc4413d` — `row` démarre sur `<indent>` et mange ses propres
+  sauts de ligne ; `<blanks>` sépare un step de son tableau / sa doc string, et
+  `Examples:` de sa table.
+- **F07** — 2026-08-29 — `a934bd7` — nom masqué après `examples-keywords`, comme
+  `background` et `rule`.
+- **F08** — 2026-08-29 — `9308e2e` — `examples*` dans la grammaire, `expand-scenario`
+  itère sur tous les blocs (`filter` au lieu de `some`).
+- **F13** — 2026-08-29 — `1e36294` — une branche par délimiteur dans `doc_string`, même
+  token à l'ouverture et à la fermeture ; corrige aussi les délimiteurs dépareillés.
