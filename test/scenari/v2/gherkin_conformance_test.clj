@@ -162,6 +162,11 @@ Given a")
   (testing "section Examples"
     (is (ok? "Feature: f\nScenario: s\nGiven <x>\nExamples:\n| x |\n| 1 |")))
 
+  (testing "un bloc Examples peut porter un nom, comme Scenario, Background et
+  Rule. Le nom est masqué : la feature map n'a pas de niveau Examples."
+    (is (ok? "Feature: f\nScenario Outline: s\nGiven <x>\nExamples: les cas nominaux\n| x |\n| 1 |"))
+    (is (ok? "Feature: f\nPlan du scénario : s\nQuand <x>\nExemples : les cas\n| x |\n| 1 |")))
+
   (testing "commentaire après un bloc Examples : `steps` est le seul endroit du
   corps d'un scénario qui accepte un #, et `examples` le referme"
     (is (ok? "Feature: f\nScenario: s\nGiven <x>\nExamples:\n| x |\n| 1 |\n# un commentaire"))
