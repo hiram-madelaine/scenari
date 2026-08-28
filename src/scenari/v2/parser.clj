@@ -49,19 +49,19 @@
            I_want_to          = <whitespace>? <'I want to '> #'.*' <eol>
            so_that            = <whitespace>? <'So that '> #'.*' <eol>
            description        = description_line+
-           <description_line> = <whitespace?> !keyword_prefix #'[^\\r\\n]+'
+           <description_line> = <whitespace?> !keyword_prefix #'[^\\s\\r\\n][^\\r\\n]*'
            <narrative_keyword>= 'As a ' | 'I want to ' | 'In order to ' | 'So that '
            <keyword_prefix>   = scenario_keyword | step_keywords | examples-keywords | narrative_keyword
                               | 'Feature:' | 'Narrative:' | rule_keyword | background_keyword
                               | '@' | '#' | '|' | '\"\"\"' | '*'
-           background         = <whitespace?> <background_keyword> <#'[^\\r\\n]*'> <eol> steps
+           background         = <whitespace?> <background_keyword> <#'[^\\r\\n]*'> <eol> <description?> steps
            <background_keyword>= " (kw-translations :background) "
            rules              = rule+
            rule               = <whitespace?> annotations? <rule_keyword> <#'[^\\r\\n]*'> <eol> description? background? scenarios
            <rule_keyword>     = " (kw-translations :rule) "
            scenarios          = (scenario <eol?> <eol?>)*
            <scenario_keyword> = " (kw-translations :scenario) "
-           scenario           = <whitespace?> annotations? <scenario_keyword> scenario_sentence <eol> steps examples?
+           scenario           = <whitespace?> annotations? <scenario_keyword> scenario_sentence <eol> description? steps examples?
            <comment>          = (comment_line whitespace?)*
            <comment_line>     = <whitespace*> <'#'> <sentence>
            steps              = (comment | <whitespace*> | step_sentence | <eol>)*

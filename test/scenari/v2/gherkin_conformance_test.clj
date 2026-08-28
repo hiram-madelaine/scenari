@@ -32,6 +32,38 @@ Given a")
              [:scenario [:scenario_sentence " s"]
               [:steps [:step_sentence [:given] [:sentence "a"]]]]]])))
 
+  (testing "Scenario, Scenario Outline et Example suivis d'une description libre"
+    (is (= (gherkin "Feature: f
+Scenario: s
+  Une narration de scenario,
+  sur deux lignes.
+Given a")
+           [:SPEC
+            [:narrative "f"]
+            [:scenarios
+             [:scenario [:scenario_sentence " s"]
+              [:description "Une narration de scenario," "sur deux lignes."]
+              [:steps [:step_sentence [:given] [:sentence "a"]]]]]]))
+    (is (ok? "Feature: f\nScenario Outline: s\n  une narration\nGiven <x>\nExamples:\n| x |\n| 1 |"))
+    (is (ok? "Feature: f\nRule: r\nExample: e\n  une narration\nWhen x")))
+
+  (testing "Background suivi d'une description libre. La spec l'autorise, mais
+  scenari n'a pas de niveau Background dans la feature map \u2014 les steps sont
+  epissees dans chaque scenario \u2014 donc la description est acceptee et masquee."
+    (is (= (gherkin "Feature: f\nBackground:\n  une narration\n  Given setup\nScenario: s\nGiven a")
+           [:SPEC
+            [:narrative "f"]
+            [:background [:steps [:step_sentence [:given] [:sentence "setup"]]]]
+            [:scenarios
+             [:scenario [:scenario_sentence " s"]
+              [:steps [:step_sentence [:given] [:sentence "a"]]]]]]))
+    (is (ok? "Feature: f\nRule: r\n  Background: un nom\n  une narration\n  Given setup\n  Example: e\n  When x")))
+
+  (testing "une description indentee n'a qu'un seul parse : `description_line`
+  interdit a son contenu de commencer par un blanc, sinon `<whitespace?>` et le
+  contenu se disputent l'indentation"
+    (is (= 1 (count (insta/parses gherkin "Feature: f\nScenario: s\n  une narration\nGiven a")))))
+
   (testing "narrative As a / I want to / So that"
     (is (= (gherkin "Feature: f\nAs a x\nI want to y\nSo that z\n\nScenario: s\nGiven a")
            [:SPEC
