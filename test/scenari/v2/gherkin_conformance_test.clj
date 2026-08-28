@@ -201,3 +201,24 @@ Given a")
   `row` n'ont d'alternative comment. Seule la fin du bloc est rattrapée."
     (is (ko? "Feature: f\nScenario: s\nGiven <x>\nExamples:\n# cmt\n| x |\n| 1 |"))
     (is (ko? "Feature: f\nScenario: s\nGiven <x>\nExamples:\n| x |\n# cmt\n| 1 |"))))
+
+(deftest cout-de-parsing-test
+  (testing "le coût de parsing reste linéaire en nombre de scénarios.
+
+  Deux règles tiennent cette linéarité, et toute évolution de la grammaire doit
+  les respecter :
+  - aucune production ne matche le vide à l'intérieur d'une répétition ;
+  - un saut de ligne n'a qu'un seul consommateur possible — les blocs démarrent
+    sur `<indent>`, jamais sur `<whitespace?>`, et `steps` est le seul à manger
+    les lignes vides qui suivent un scénario.
+
+  Avec deux consommateurs concurrents, le parseur GLL explore toutes les
+  répartitions : 20 scénarios décrits partaient en OutOfMemoryError."
+    (let [source (str "Feature: f\n"
+                      (apply str (repeat 60 "Scenario: s\n  une narration\nGiven a\n\n")))
+          debut  (System/nanoTime)
+          ast    (gherkin source)
+          ms     (long (/ (- (System/nanoTime) debut) 1e6))]
+      (is (not (insta/failure? ast)))
+      ;; ~50 ms en pratique ; le seuil ne détecte que le retour de l'explosion
+      (is (< ms 2000) (str "60 scénarios parsés en " ms " ms")))))

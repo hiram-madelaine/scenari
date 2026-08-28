@@ -38,8 +38,8 @@
 
 (def gherkin (insta/parser
                       (str "
-           SPEC = <whitespace?> <comment?> annotations? narrative? description? <whitespace?> <comment?> background? scenarios rules?
-           narrative          = <'Narrative: '|'Feature: '> <whitespace?> #'.*' <eol>? (as_a I_want_to in_order_to |
+           SPEC = <whitespace?> <comment?> annotations? narrative? <blanks?> description? <whitespace?> <comment?> background? scenarios rules?
+           narrative          = <'Narrative: '|'Feature: '> <whitespace?> #'.*' (as_a I_want_to in_order_to |
                                                                                        as_a I_want_to so_that | in_order_to as_a I_want_to |
                                                                                        as_a in_order_to I_want_to)?
            annotations        = (<whitespace?> annotation)+ <whitespace?>
@@ -48,23 +48,23 @@
            as_a               = <whitespace>? <'As a '> #'.*' <eol>
            I_want_to          = <whitespace>? <'I want to '> #'.*' <eol>
            so_that            = <whitespace>? <'So that '> #'.*' <eol>
-           description        = description_line+
-           <description_line> = <whitespace?> !keyword_prefix #'[^\\s\\r\\n][^\\r\\n]*'
+           description        = description_line (<blanks> description_line)*
+           <description_line> = <indent> !keyword_prefix #'[^\\s\\r\\n][^\\r\\n]*'
            <narrative_keyword>= 'As a ' | 'I want to ' | 'In order to ' | 'So that '
            <keyword_prefix>   = scenario_keyword | step_keywords | examples-keywords | narrative_keyword
                               | 'Feature:' | 'Narrative:' | rule_keyword | background_keyword
                               | '@' | '#' | '|' | '\"\"\"' | '*'
-           background         = <whitespace?> <background_keyword> <#'[^\\r\\n]*'> <eol> <description?> steps
+           background         = <indent> <background_keyword> <#'[^\\r\\n]*'> <eol> <description?> steps
            <background_keyword>= " (kw-translations :background) "
            rules              = rule+
-           rule               = <whitespace?> annotations? <rule_keyword> <#'[^\\r\\n]*'> <eol> description? background? scenarios
+           rule               = <indent> annotations? <rule_keyword> <#'[^\\r\\n]*'> <eol> description? <blanks?> background? scenarios
            <rule_keyword>     = " (kw-translations :rule) "
-           scenarios          = (scenario <eol?> <eol?>)*
+           scenarios          = scenario*
            <scenario_keyword> = " (kw-translations :scenario) "
-           scenario           = <whitespace?> annotations? <scenario_keyword> scenario_sentence <eol> description? steps examples?
+           scenario           = <indent> annotations? <scenario_keyword> scenario_sentence <eol> description? steps examples?
            <comment>          = (comment_line whitespace?)*
-           <comment_line>     = <whitespace*> <'#'> <sentence>
-           steps              = (comment | <whitespace*> | step_sentence | <eol>)*
+           <comment_line>     = <indent> <'#'> <sentence>
+           steps              = (step_sentence | comment_line | <blank_line>)*
            given              = <" (kw-translations :given) ">
            when               = <" (kw-translations :when) ">
            then               = <" (kw-translations :then) ">
@@ -73,15 +73,17 @@
            <whitespace>       = #'\\s+'
            <space>            = ' '  | '\t'
            <eol>              = #'\r?\n'
+           <blank_line>       = <#'[ \t]*\r?\n'>
+           <blanks>           = <#'(?:[ \t]*\r?\n)+'>
            scenario_sentence  = #'.*'
-           step_sentence      = step_keywords sentence (<eol> (tab_params | doc_string))?
+           step_sentence      = <indent> step_keywords sentence (<eol> (tab_params | doc_string))?
            sentence           = #'.*'
            doc_string         = <whitespace?> <doc_delim> <eol> doc_content <whitespace?> <doc_delim>
            <doc_delim>        = '\"\"\"' | '```'
            doc_content        = #'(?:[^\"`]+|\"(?!\"\")|`(?!``))*'
-           examples           = <whitespace?> examples-keywords <eol> header row* <eol?> <comment>
+           examples           = <indent> examples-keywords <eol> header row* (comment_line | <blank_line>)*
            <examples-keywords>= <" (kw-translations :examples) ">
-           tab_params         = header row* <eol?>
+           tab_params         = header row*
            header             = <indent> <'|'> (column_name <'|'>)+
            <column_name>      = #'(?:[^|\\\\\r\n]|\\\\.)*'
            row                = <eol> <indent> <'|'> (value <'|'>)+
