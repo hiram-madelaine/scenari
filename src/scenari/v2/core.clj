@@ -125,12 +125,27 @@
 
 (defn- child [tag node] (some #(when (node? tag %) %) (rest node)))
 
+(defn- with-description
+  "A Rule's description is context for every scenario it groups, and there is no
+  Rule level in the feature map to hang it on either: prepend it to the
+  scenario's own description, the way with-background prepends its steps."
+  [rule-desc scenario]
+  (if (empty? rule-desc)
+    scenario
+    (let [lines (concat rule-desc (rest (child :description scenario)))]
+      (into [] (comp (remove #(node? :description %))
+                     (mapcat #(if (node? :steps %) [(into [:description] lines) %] [%])))
+            scenario))))
+
 (defn- rule-scenarios
-  "A Rule only groups scenarios and may carry a Background of its own; scenari
-  has no hierarchy level for it, so its scenarios are lifted into the feature."
+  "A Rule only groups scenarios and may carry a Background and a description of
+  its own; scenari has no hierarchy level for it, so its scenarios are lifted
+  into the feature, carrying both."
   [rule]
-  (let [bg-steps (rest (child :steps (child :background rule)))]
-    (map #(with-background bg-steps %) (rest (child :scenarios rule)))))
+  (let [bg-steps  (rest (child :steps (child :background rule)))
+        rule-desc (rest (child :description rule))]
+    (map #(->> % (with-description rule-desc) (with-background bg-steps))
+         (rest (child :scenarios rule)))))
 
 (defn- normalize-scenarios
   "Pre-pass on the parse tree: lift the Rules, splice in the Background and

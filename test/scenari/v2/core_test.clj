@@ -121,6 +121,38 @@
              (map (juxt :scenario-name #(map :sentence (:steps %))) scenarios))
           "the feature background comes first, then the rule's own"))))
 
+(t/deftest rule-description-test
+  (t/testing "a Rule's description is prepended to each of its scenarios"
+    (let [scenarios (:scenarios (v2/->feature-ast
+                                 (str "Feature: f\n"
+                                      "Rule: r\n"
+                                      "  ce que la regle verifie\n"
+                                      "  Scenario: s1\n"
+                                      "  sa propre narration\n"
+                                      "  When x\n"
+                                      "  Scenario: s2\n"
+                                      "  When y\n")
+                                 {} *ns*))]
+      (is (= ["ce que la regle verifie\nsa propre narration"
+              "ce que la regle verifie"]
+             (map :description scenarios))
+          "the rule's lines come first, the scenario's own follow")))
+
+  (t/testing "a Rule without description leaves the scenario's own untouched"
+    (let [scenarios (:scenarios (v2/->feature-ast
+                                 (str "Feature: f\nRule: r\n"
+                                      "  Scenario: s\n  sa narration\n  When x\n")
+                                 {} *ns*))]
+      (is (= ["sa narration"] (map :description scenarios)))))
+
+  (t/testing "a Rule description follows its scenarios through outline expansion"
+    (let [scenarios (:scenarios (v2/->feature-ast
+                                 (str "Feature: f\nRule: r\n  cas <x>\n"
+                                      "  Scenario Outline: s\n  When y\n"
+                                      "  Examples:\n  | x |\n  | 1 |\n  | 2 |\n")
+                                 {} *ns*))]
+      (is (= ["cas 1" "cas 2"] (map :description scenarios))))))
+
 (defn- surviving-scenarios
   "[feature scenario] pairs left after kaocha's filter marked the rest ::skip."
   [suite]
