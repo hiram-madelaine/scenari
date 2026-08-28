@@ -2,6 +2,7 @@
   (:require [clojure.test :as t]
             [clojure.java.io :as io]
             [clojure.string :as string]
+            [instaparse.core :as insta]
             [instaparse.transform :as insta-trans]
             [scenari.v2.parser :as parser]
             [scenari.v2.glue :as glue])
@@ -91,28 +92,37 @@
            {:params params})))
 
 (defn ->feature-ast [source {:keys [pre-run pre-scenario-run post-scenario-run default-scenario-state] :as _options} ns-feature]
-  (insta-trans/transform
-    {:SPEC              (fn [& s] (apply merge s))
-     :annotation        (fn [s] s)
-     :annotations       (fn [& s] {:annotations (set s)})
-     :narrative         (fn [& n] {:feature (string/join " " n)})
-     :description       (fn [& lines] {:description (string/join "\n" lines)})
-     :steps             (fn [& contents]
-                          {:steps (vec (map-indexed (fn [i content]
-                                                      (let [step (step->map content)]
-                                                        (-> step
-                                                            (assoc :order i)
-                                                            (assoc :glue (glue/find-glue-by-step-regex step ns-feature)))))
-                                                    contents))})
-     :scenario_sentence (fn [a] {:scenario-name a})
-     :scenario          (fn [& contents] (into {:id            (.toString (UUID/randomUUID))
-                                                :pre-run       (map #(assoc (meta %) :ref %) pre-scenario-run)
-                                                :post-run      (map #(assoc (meta %) :ref %) post-scenario-run)
-                                                :default-state (or default-scenario-state {})}
-                                               contents))
-     :scenarios         (fn [& contents] {:scenarios (into [] contents)
-                                          :pre-run   (map #(assoc (meta %) :ref %) pre-run)})}
-    (parser/gherkin source)))
+  (let [ast (parser/gherkin source)
+        _ (when (insta/failure? ast)
+            (throw (ex-info (str "Cannot parse feature:\n" (print-str ast))
+                            {:source source :failure ast})))
+        feature (insta-trans/transform
+                 {:SPEC              (fn [& s] (apply merge s))
+                  :annotation        (fn [s] s)
+                  :annotations       (fn [& s] {:annotations (set s)})
+                  :narrative         (fn [& n] {:feature (string/join " " n)})
+                  :description       (fn [& lines] {:description (string/join "\n" lines)})
+                  :steps             (fn [& contents]
+                                       {:steps (vec (map-indexed (fn [i content]
+                                                                   (let [step (step->map content)]
+                                                                     (-> step
+                                                                         (assoc :order i)
+                                                                         (assoc :glue (glue/find-glue-by-step-regex step ns-feature)))))
+                                                                 contents))})
+                  :scenario_sentence (fn [a] {:scenario-name a})
+                  :scenario          (fn [& contents] (into {:id            (.toString (UUID/randomUUID))
+                                                             :pre-run       (map #(assoc (meta %) :ref %) pre-scenario-run)
+                                                             :post-run      (map #(assoc (meta %) :ref %) post-scenario-run)
+                                                             :default-state (or default-scenario-state {})}
+                                                            contents))
+                  :scenarios         (fn [& contents] {:scenarios (into [] contents)
+                                                       :pre-run   (map #(assoc (meta %) :ref %) pre-run)})}
+                 ast)]
+    (when (empty? (:scenarios feature))
+      (throw (ex-info (str "Feature has no scenario. Lines whose keyword is not recognized "
+                           "are parsed as free description:\n" (:description feature))
+                      {:source source :feature feature})))
+    feature))
 
 ;; ------------------------
 ;;          RUN

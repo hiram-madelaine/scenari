@@ -14,7 +14,7 @@
     (is (= (v2/find-sentence-params "Given an id 1234 and \"1234\" ") [{:type :value, :val 1234} {:type :value, :val "1234"}]) "should return multiple value")))
 
 (v2/defgiven #"My duplicated step in other ns and feature ns" [state]
-             state)
+  state)
 
 (t/deftest deffeature-macro-test
   (t/testing "macro definition taking different feature structure"
@@ -35,3 +35,14 @@
   (krepl/test-plan)
   (krepl/run-all)
   (krepl/run :scenario))
+
+(t/deftest feature-ast-parse-failure-test
+  (t/testing "an unparsable feature raises instead of yielding an empty, passing feature"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Cannot parse feature"
+                          (v2/->feature-ast "Feature: f\nScenario: s\nGiven a\n  \"\"\"\nune doc string jamais fermee" {} *ns*)))
+    (is (= 1 (count (:scenarios (v2/->feature-ast "Feature: f\nScenario: s\nGiven a" {} *ns*))))
+        "a valid feature is unaffected"))
+
+  (t/testing "a feature whose keywords are all unrecognized is swallowed as description, not silently empty"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"no scenario"
+                          (v2/->feature-ast "Fonctionnalite: f\nScenario ! s\nSoit a" {} *ns*)))))
