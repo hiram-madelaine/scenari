@@ -47,6 +47,35 @@ Feature: tagged feature
       Then My initial state contains foo"
   {:default-scenario-state {:foo 1}})
 
+(defn- loaded-feature
+  "The feature testable kaocha builds for `id`, as ./test.sh would load it."
+  [id]
+  (->> (testable/load {:kaocha.testable/type           :kaocha.type/scenari
+                       :kaocha.testable/id             :scenario
+                       :kaocha/source-paths            ["src"]
+                       :kaocha/test-paths              ["test/scenari/v2"]
+                       :kaocha.type.scenari/glue-paths ["test/scenari/v2"]})
+       :kaocha.test-plan/tests
+       (filter #(= id (:kaocha.testable/id %)))
+       first))
+
+(v2/deffeature outline-feature
+  "Feature: one scenario per Examples row
+  Scenario Outline: constant name
+      Then My initial state contains foo
+  Examples:
+  | x |
+  | 1 |
+  | 2 |"
+  {:default-scenario-state {:foo 1}})
+
+(deftest outline-scenario-ids-test
+  (testing "each Examples row must stay addressable: kaocha keys a leaf by its
+  id, and a scenario name with no <placeholder> gives every row the same one"
+    (is (= [:constant-name :constant-name-2]
+           (map :kaocha.testable/id
+                (:kaocha.test-plan/tests (loaded-feature ::outline-feature)))))))
+
 (def post-run-atom (atom 0))
 (defn post-run-side-effect [] (swap! post-run-atom inc))
 
@@ -66,14 +95,7 @@ Feature: tagged feature
     (is (= 2 @post-run-atom))
     ;; the kaocha suite type is the runner ./test.sh uses, and it used to load
     ;; the feature without its :post-run at all
-    (let [suite (testable/load {:kaocha.testable/type           :kaocha.type/scenari
-                                :kaocha.testable/id             :scenario
-                                :kaocha/source-paths            ["src"]
-                                :kaocha/test-paths              ["test/scenari/v2"]
-                                :kaocha.type.scenari/glue-paths ["test/scenari/v2"]})
-          feature (->> (:kaocha.test-plan/tests suite)
-                       (filter #(= ::post-run-feature (:kaocha.testable/id %)))
-                       first)]
+    (let [feature (loaded-feature ::post-run-feature)]
       (is (seq (:kaocha.type.scenari/post-run feature))
           "-load must carry the feature's :post-run onto the testable")
       (testable/-run feature {})

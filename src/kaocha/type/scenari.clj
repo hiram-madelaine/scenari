@@ -57,6 +57,22 @@
           ::feature       (keyword (path->id (str (:project-directory document) (:file document))))
           ::file          (str (:project-directory document) (:file document))}))
 
+(defn- with-unique-ids
+  "Kaocha addresses a leaf by its id, and every row of an Examples table gives a
+  scenario with the same name as soon as that name carries no <placeholder> -
+  the common case. Number the repeats, so --focus can reach a single row and the
+  report does not show N indistinguishable leaves."
+  [testables]
+  (second (reduce (fn [[seen acc] testable]
+                    (let [id (::testable/id testable)
+                          n  (inc (get seen id 0))]
+                      [(assoc seen id n)
+                       (conj acc (cond-> testable
+                                   (> n 1) (assoc ::testable/id
+                                                  (keyword (str (name id) "-" n)))))]))
+                  [{} []]
+                  testables)))
+
 (defn- require-all-ns [paths]
   (->> paths
        (map path->file)
@@ -78,7 +94,7 @@
                  ::testable/meta         (merge (dissoc feature-meta :scenari/raw-feature :scenari/feature-ast :test)
                                                 (zipmap (map keyword annotations) (repeat true)))
                  ::testable/desc         feature
-                 :kaocha.test-plan/tests (mapv #(scenario->testable feature-content %) scenarios)
+                 :kaocha.test-plan/tests (with-unique-ids (map #(scenario->testable feature-content %) scenarios))
                  ::annotations           annotations
                  ::description           description
                  ::pre-run               pre-run
