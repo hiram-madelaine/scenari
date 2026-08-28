@@ -128,6 +128,19 @@ Given a")
       (is (= [:tab_params [:header " a " " b "] [:row " 1 " "  "] [:row " 3 " " 4 "]]
              (tab "| a | b |\n| 1 |  |\n| 3 | 4 |")))))
 
+  (testing "blancs en fin de ligne d'un tableau : très courants dans un .feature
+  édité à la main, et `->feature-ast` lève désormais sur un échec de parsing"
+    (is (= [:tab_params [:header " a " " b "] [:row " 1 " " 2 "]]
+           (get-in (gherkin "Feature: f\nScenario: s\nGiven a\n| a | b |   \n| 1 | 2 |")
+                   [2 1 2 1 3])))
+    (is (ok? "Feature: f\nScenario: s\nGiven a\n| a | b |\t\n| 1 | 2 |")))
+
+  (testing "ligne vide dans un tableau, entre un step et son tableau, et après Examples:"
+    (is (ok? "Feature: f\nScenario: s\nGiven a\n| a | b |\n\n| 1 | 2 |"))
+    (is (ok? "Feature: f\nScenario: s\nGiven a\n\n| a | b |\n| 1 | 2 |"))
+    (is (ok? "Feature: f\nScenario: s\nGiven a\n\n  \"\"\"\n  txt\n  \"\"\""))
+    (is (ok? "Feature: f\nScenario Outline: s\nGiven <x>\nExamples:\n\n| x |\n| 1 |")))
+
   (testing "pipe échappé dans une cellule"
     (is (= [:header " a \\| b " " c "]
            (get-in (gherkin "Feature: f\nScenario: s\nGiven a\n| a \\| b | c |\n| 1 | 2 |")
