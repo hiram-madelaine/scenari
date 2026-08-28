@@ -198,6 +198,11 @@ Given a")
   (testing "fins de ligne Windows"
     (is (ok? "Feature: f\r\nScenario: s\r\nGiven a\r\n")))
 
+  (testing "espaces en fin de fichier, sans saut de ligne final : `steps` ne mange
+  que des lignes entières, c'est la fin de SPEC qui absorbe le reste"
+    (is (ok? "Feature: f\nScenario: s\nGiven a\n| x |\n| 1 |\n\n\n  "))
+    (is (ok? "Feature: f\nScenario: s\nGiven a\t")))
+
   (testing "feature sans scénario"
     (is (ok? "Feature: f\n")))
 

@@ -46,7 +46,7 @@
 
 (def gherkin (insta/parser
                       (str "
-           SPEC = <whitespace?> <comment?> annotations? narrative? <blanks?> description? <whitespace?> <comment?> background? scenarios rules?
+           SPEC = <whitespace?> <comment?> annotations? narrative? <blanks?> description? <whitespace?> <comment?> background? scenarios rules? <indent>
            narrative          = <'Narrative: '|'Feature: '> <whitespace?> #'.*' (as_a I_want_to in_order_to |
                                                                                        as_a I_want_to so_that | in_order_to as_a I_want_to |
                                                                                        as_a in_order_to I_want_to)?
