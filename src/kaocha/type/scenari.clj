@@ -50,6 +50,9 @@
   (merge scenario
          {::testable/type :kaocha.type/scenari-scenario
           ::testable/id   (keyword (scenario->id scenario))
+          ;; gherkin @annotations of the scenario, so `--focus-meta`/`--skip-meta`
+          ;; also work one level below the feature
+          ::testable/meta (zipmap (map keyword (:annotations scenario)) (repeat true))
           ::testable/desc (or (:scenario-name scenario) "")
           ::feature       (keyword (path->id (str (:project-directory document) (:file document))))
           ::file          (str (:project-directory document) (:file document))}))

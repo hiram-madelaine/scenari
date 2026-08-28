@@ -3,6 +3,8 @@
             [scenari.v2.core :as v2]
             [scenari.v2.test :as sc-test]
             [kaocha.type.scenari]
+            [kaocha.testable :as testable]
+            [kaocha.plugin.filter :as kfilter]
             [kaocha.repl :as krepl]
             [testit.core :refer :all]))
 
@@ -118,3 +120,31 @@
               [" e2" ["feature setup" "y"]]]
              (map (juxt :scenario-name #(map :sentence (:steps %))) scenarios))
           "the feature background comes first, then the rule's own"))))
+
+(defn- surviving-scenarios
+  "[feature scenario] pairs left after kaocha's filter marked the rest ::skip."
+  [suite]
+  (for [feature (when-not (::testable/skip suite) (:kaocha.test-plan/tests suite))
+        :when (not (::testable/skip feature))
+        scenario (:kaocha.test-plan/tests feature)
+        :when (not (::testable/skip scenario))]
+    [(::testable/desc feature) (::testable/desc scenario)]))
+
+(defn- focus-meta [suite k]
+  (surviving-scenarios (kfilter/filter-testable suite {:focus-meta [k]})))
+
+(t/deftest kaocha-tag-filtering-test
+  (let [suite (testable/-load {::testable/type                 :kaocha.type/scenari
+                               :kaocha/source-paths            ["src"]
+                               :kaocha/test-paths              ["test/scenari/v2"]
+                               :kaocha.type.scenari/glue-paths ["scenari/v2"]})]
+    (t/testing "every feature of the test paths is loaded"
+      (is (< 1 (count (surviving-scenarios suite)))))
+
+    (t/testing "--focus-meta on a gherkin tag of a scenario keeps that scenario alone"
+      (is (= [["tagged feature" " tagged scenario"]] (focus-meta suite :scenario-annotated))))
+
+    (t/testing "--focus-meta on a gherkin tag of a feature, or on deffeature var meta,
+    keeps the whole feature"
+      (is (= [["tagged feature" " tagged scenario"]] (focus-meta suite :annotated)))
+      (is (= [["tagged feature" " tagged scenario"]] (focus-meta suite :var-tagged))))))

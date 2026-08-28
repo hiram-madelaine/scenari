@@ -43,6 +43,16 @@ Given a")
   (testing "tags au niveau Feature"
     (is (ok? "@a @b\nFeature: f\nScenario: s\nGiven a")))
 
+  (testing "un tag accepte tout caractère non blanc"
+    (is (= [:annotations [:annotation "smoke-test"] [:annotation "issue:123"]]
+           (get-in (gherkin "@smoke-test @issue:123\nFeature: f\nScenario: s\nGiven a") [1]))))
+
+  (testing "tags au niveau scénario"
+    (is (= [:scenario [:annotations [:annotation "a"] [:annotation "b"]]
+            [:scenario_sentence " s"]
+            [:steps [:step_sentence [:given] [:sentence "x"]]]]
+           (get-in (gherkin "Feature: f\n@a @b\nScenario: s\nGiven x") [2 1]))))
+
   (testing "mots-clés de step Given/When/Then/And, répétables"
     (is (= 5 (count (rest (get-in (gherkin "Feature: f\nScenario: s\nGiven a\nAnd b\nWhen c\nThen d\nAnd e")
                                   [2 1 2]))))))
@@ -127,9 +137,6 @@ Given a")
     (is (ok? "Scenario: s\nGiven a"))))
 
 (deftest non-supporte-test
-  (testing "tags au niveau scénario"
-    (is (ko? "Feature: f\n@tag\nScenario: s\nGiven a")))
-
   (testing "le mot-clé Feature n'a pas de traduction : la ligne tombe dans la
   description et le nom de la feature est perdu, sans erreur"
     (is (= [:SPEC

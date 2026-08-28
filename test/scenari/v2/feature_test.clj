@@ -41,6 +41,7 @@
 (v2/deffeature ^:var-tagged tagged-feature
   "@annotated
 Feature: tagged feature
+  @scenario-annotated
   Scenario: tagged scenario
       Then My initial state contains foo"
   {:default-scenario-state {:foo 1}})

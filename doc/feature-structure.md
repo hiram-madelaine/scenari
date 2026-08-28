@@ -42,6 +42,7 @@ Each scenario is represented as a map within the `:scenarios` vector:
 ```clojure
 {:id "uuid-string"           ; Unique identifier
  :scenario-name "Name"       ; The scenario title
+ :annotations #{...}         ; Optional annotations (tags) of the scenario
  :steps [...]                ; Vector of step maps
  :pre-run [...]              ; Functions to run before scenario
  :post-run [...]             ; Functions to run after scenario

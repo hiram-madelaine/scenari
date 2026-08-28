@@ -43,7 +43,7 @@
                                                                                        as_a I_want_to so_that | in_order_to as_a I_want_to |
                                                                                        as_a in_order_to I_want_to)?
            annotations        = (<whitespace?> annotation)+ <whitespace?>
-           annotation         = <'@'> #'\\w+'
+           annotation         = <'@'> #'[^\\s@]+'
            in_order_to        = <whitespace>? <'In order to '> #'.*' <eol>
            as_a               = <whitespace>? <'As a '> #'.*' <eol>
            I_want_to          = <whitespace>? <'I want to '> #'.*' <eol>
@@ -61,7 +61,7 @@
            <rule_keyword>     = " (kw-translations :rule) "
            scenarios          = (scenario <eol?> <eol?>)*
            <scenario_keyword> = " (kw-translations :scenario) "
-           scenario           = <whitespace?> <scenario_keyword> scenario_sentence <eol> steps examples?
+           scenario           = <whitespace?> annotations? <scenario_keyword> scenario_sentence <eol> steps examples?
            <comment>          = (comment_line whitespace?)*
            <comment_line>     = <whitespace*> <'#'> <sentence>
            steps              = (comment | <whitespace*> | step_sentence | <eol>)*
