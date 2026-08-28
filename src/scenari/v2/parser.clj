@@ -79,7 +79,7 @@
            doc_string         = <whitespace?> <doc_delim> <eol> doc_content <whitespace?> <doc_delim>
            <doc_delim>        = '\"\"\"' | '```'
            doc_content        = #'(?:[^\"`]+|\"(?!\"\")|`(?!``))*'
-           examples           = <whitespace?> examples-keywords <eol> header row* <eol?>
+           examples           = <whitespace?> examples-keywords <eol> header row* <eol?> <comment>
            <examples-keywords>= <" (kw-translations :examples) ">
            tab_params         = header row* <eol?>
            header             = <indent> <'|'> (column_name <'|'>)+

@@ -117,6 +117,14 @@ Given a")
   (testing "section Examples"
     (is (ok? "Feature: f\nScenario: s\nGiven <x>\nExamples:\n| x |\n| 1 |")))
 
+  (testing "commentaire après un bloc Examples : `steps` est le seul endroit du
+  corps d'un scénario qui accepte un #, et `examples` le referme"
+    (is (ok? "Feature: f\nScenario: s\nGiven <x>\nExamples:\n| x |\n| 1 |\n# un commentaire"))
+    (is (ok? (str "Feature: f\nRule: r\nScenario: s\nGiven <x>\n"
+                  "Examples:\n| x |\n| 1 |\n# un commentaire")))
+    (is (ok? (str "Feature: f\nScenario: s1\nGiven <x>\nExamples:\n| x |\n| 1 |\n"
+                  "# un commentaire\nScenario: s2\nGiven a"))))
+
   (testing "doc string triple-quote"
     (is (= [:doc_string [:doc_content "  ligne 1\n    ligne 2\n  "]]
            (get-in (gherkin "Feature: f\nScenario: s\nGiven a\n  \"\"\"\n  ligne 1\n    ligne 2\n  \"\"\"")
@@ -155,4 +163,9 @@ Given a")
            (gherkin "Feature: f\nEn tant que x\nJe veux y\nScénario : s\nQuand a"))))
 
   (testing "l'espace après Feature: est obligatoire"
-    (is (ko? "Feature:f\nScenario: s\nGiven a"))))
+    (is (ko? "Feature:f\nScenario: s\nGiven a")))
+
+  (testing "commentaire à l'intérieur du tableau d'Examples : ni `header` ni
+  `row` n'ont d'alternative comment. Seule la fin du bloc est rattrapée."
+    (is (ko? "Feature: f\nScenario: s\nGiven <x>\nExamples:\n# cmt\n| x |\n| 1 |"))
+    (is (ko? "Feature: f\nScenario: s\nGiven <x>\nExamples:\n| x |\n# cmt\n| 1 |"))))
