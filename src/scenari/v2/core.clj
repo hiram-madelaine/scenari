@@ -26,7 +26,9 @@
   (when (= :tab_params param-type)
     (let [param-names (map (comp keyword cell) headers)
           params-values (map (comp #(map cell %) rest) rows)]
-      [{:type :table :val (mapv #(apply hash-map (interleave param-names %)) params-values)}])))
+      ;; array-map, not hash-map: it keeps the column order of the feature file
+      ;; whatever the width, which the report relies on to print the table back
+      [{:type :table :val (mapv #(apply array-map (interleave param-names %)) params-values)}])))
 
 (defn doc-string->params [[param-type [_ content]]]
   (when (= :doc_string param-type)

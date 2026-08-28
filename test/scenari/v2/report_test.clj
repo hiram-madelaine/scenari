@@ -3,6 +3,7 @@
             [clojure.test :refer [deftest testing is]]
             [clojure.test :as t]
             [kaocha.output :as output]
+            [scenari.v2.core :as core]
             [scenari.v2.test]))
 
 ;; captured at load time: kaocha redefines the clojure.test/report var while it
@@ -64,3 +65,21 @@
       (is (string/includes? (render {:type :begin-step :step (assoc a-step :status :pending)})
                             (str esc "[90mI create a product named"))
           "pending sentence in grey"))))
+
+(deftest wide-datatable-column-order-test
+  (testing "a datatable wider than 8 columns keeps its feature-file column order"
+    ;; ->feature-ast reports :missing-step for the unresolved glue, muted here
+    (let [step (with-redefs [t/do-report (constantly nil)]
+                 (-> (core/->feature-ast "Feature: t
+  Scenario: s
+    Given a table
+      | a | b | c | d | e | f | g | h | i | j | k |
+      | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 |
+"
+                                         {} 'user)
+                     :scenarios first :steps first))]
+      (binding [output/*colored-output* false]
+        (is (= (str "  Given a table\n"
+                    "      | a | b | c | d | e | f | g | h | i | j  | k  |\n"
+                    "      | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 |\n")
+               (render {:type :begin-step :step (assoc step :status :success)})))))))
