@@ -320,23 +320,20 @@
       symbol))
 
 ;; TODO make a step evaluable as a standalone fun
-;; TODO duplication, should be resolve with a macro
-(defmacro defgiven [regex params & body]
-  `(do (defn ~(-> (re->symbol regex)
-                  (vary-meta assoc :step regex)) ~params (into [] [~@body]))
-       (glue/invalidate-glues-cache!)))
+(defmacro defglue
+  "Defines a step: an ordinary var carrying the step's regex as :step metadata,
+  there is no registry. The keyword a step was written with plays no part in the
+  definition, so defgiven / defwhen / defthen / defand are four names for this
+  one macro. Returns the var, like every other Clojure def*."
+  [regex params & body]
+  (let [sym (re->symbol regex)]
+    `(do (defn ~(vary-meta sym assoc :step regex) ~params (into [] [~@body]))
+         ;; redefining a step in an already loaded ns leaves (count (all-ns))
+         ;; unchanged, which is what all-glues memoizes on
+         (glue/invalidate-glues-cache!)
+         (var ~sym))))
 
-(defmacro defand [regex params & body]
-  `(do (defn ~(-> (re->symbol regex)
-                  (vary-meta assoc :step regex)) ~params (into [] [~@body]))
-       (glue/invalidate-glues-cache!)))
-
-(defmacro defwhen [regex params & body]
-  `(do (defn ~(-> (re->symbol regex)
-                  (vary-meta assoc :step regex)) ~params (into [] [~@body]))
-       (glue/invalidate-glues-cache!)))
-
-(defmacro defthen [regex params & body]
-  `(do (defn ~(-> (re->symbol regex)
-                  (vary-meta assoc :step regex)) ~params (into [] [~@body]))
-       (glue/invalidate-glues-cache!)))
+(defmacro defgiven [regex params & body] `(defglue ~regex ~params ~@body))
+(defmacro defwhen [regex params & body] `(defglue ~regex ~params ~@body))
+(defmacro defthen [regex params & body] `(defglue ~regex ~params ~@body))
+(defmacro defand [regex params & body] `(defglue ~regex ~params ~@body))

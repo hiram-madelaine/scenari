@@ -116,6 +116,14 @@
          (v2/->feature-ast "Feature: f\nScenario Outline: s\nGiven <x>\nExamples:\n| x |\n"
                            {} *ns*)))))
 
+(t/deftest def-glue-test
+  (t/testing "the def* macros return their var, like every other Clojure def*:
+  they used to return nil, breaking `(doto (defgiven ...) ...)`, the REPL echo
+  and any tooling reading the returned var"
+    (let [v (v2/defgiven "a step returning its var" [state] state)]
+      (is (var? v))
+      (is (= "a step returning its var" (:step (meta v)))))))
+
 (t/deftest rule-tags-test
   (t/testing "a Rule's tags are inherited by the scenarios it groups, per the
   gherkin spec: without them `--focus-meta :slow` silently ran zero scenarios"
