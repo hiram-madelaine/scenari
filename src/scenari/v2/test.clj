@@ -48,12 +48,14 @@
   ;; ponytail: column order follows the row map's key order, which Clojure keeps
   ;; for array-maps (up to 8 columns) and not beyond.
   [rows]
+  ;; max 1 : une colonne dont l'en-tete et toutes les cases sont vides donne une
+  ;; largeur 0, et Formatter refuse le drapeau de justification sans largeur (%-0s)
   (let [headers (keys (first rows))
         cell    (fn [row h] (str (get row h "")))
         widths  (into {} (for [h headers]
                            [h (apply max (count (name h)) (map #(count (cell % h)) rows))]))
         line    (fn [vals] (str "| "
-                                (string/join " | " (map #(format (str "%-" (widths %1) "s") %2) headers vals))
+                                (string/join " | " (map #(format (str "%-" (max 1 (widths %1)) "s") %2) headers vals))
                                 " |"))]
     (cons (line (map name headers))
           (map (fn [row] (line (map #(cell row %) headers))) rows))))

@@ -83,3 +83,14 @@
                     "      | a | b | c | d | e | f | g | h | i | j  | k  |\n"
                     "      | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 |\n")
                (render {:type :begin-step :step (assoc step :status :success)})))))))
+
+(deftest empty-column-rendering-test
+  (testing "a datatable column whose header and cells are all empty used to
+  format as %-0s, which java.util.Formatter rejects: the reporter threw instead
+  of printing the step"
+    (binding [output/*colored-output* false]
+      (let [step (assoc a-step :params [{:type  :table
+                                         :val   [{(keyword "") "" :val "1"}]}])
+            out  (render {:type :begin-step :step step})]
+        (is (string/includes? out "|   | val |\n"))
+        (is (string/includes? out "|   | 1   |\n"))))))
