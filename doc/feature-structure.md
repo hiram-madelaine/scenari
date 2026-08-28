@@ -129,3 +129,11 @@ For scenarios with examples tables, each row generates a separate execution cont
 ```
 
 This data structure provides a flexible representation that preserves all information from the original Gherkin text while supporting execution, reporting, and integration with test frameworks.
+
+## Constructs resolved at parse time
+
+`Scenario Outline` has no representation in this structure: a pre-pass on the
+parse tree normalizes it away before the feature map is built.
+
+- **Scenario Outline** — becomes one scenario per `Examples` row, with the
+  `<placeholders>` substituted throughout the scenario, its name included.

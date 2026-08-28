@@ -56,3 +56,26 @@
                                  {} *ns*)
                :scenarios first :steps first :params first :val))
         "\\| stays in its cell instead of splitting it, \\n becomes a newline")))
+
+(t/deftest scenario-outline-test
+  (t/testing "a scenario outline yields one scenario per Examples row, placeholders substituted"
+    (let [scenarios (:scenarios (v2/->feature-ast
+                                 (str "Feature: f\n"
+                                      "Scenario Outline: adding <a> and <b>\n"
+                                      "Given a number <a>\n"
+                                      "When I add <b>\n"
+                                      "Then I get <sum>\n"
+                                      "Examples:\n"
+                                      "| a | b | sum |\n"
+                                      "| 1 | 2 | 3   |\n"
+                                      "| 5 | 5 | 10  |")
+                                 {} *ns*))]
+      (is (= 2 (count scenarios)))
+      (is (= [" adding 1 and 2" " adding 5 and 5"] (map :scenario-name scenarios))
+          "the scenario name is substituted too")
+      (is (= [["a number 1" "I add 2" "I get 3"]
+              ["a number 5" "I add 5" "I get 10"]]
+             (map #(map :sentence (:steps %)) scenarios)))
+      (is (= [[{:type :value :val 1}] [{:type :value :val 2}] [{:type :value :val 3}]]
+             (map :params (:steps (first scenarios))))
+          "substituted values are parsed as step params, so glues receive them"))))

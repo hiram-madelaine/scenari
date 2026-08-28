@@ -2,6 +2,7 @@
   (:require [clojure.test :as t]
             [clojure.java.io :as io]
             [clojure.string :as string]
+            [clojure.walk :as walk]
             [instaparse.core :as insta]
             [instaparse.transform :as insta-trans]
             [scenari.v2.parser :as parser]
@@ -97,11 +98,34 @@
                                      (doc-string->params data-param)))]
            {:params params})))
 
+(defn- node? [tag x] (and (vector? x) (= tag (first x))))
+
+(defn- expand-scenario
+  "Scenario outline: a scenario carrying an Examples table becomes one scenario
+  per row, with the <placeholders> substituted everywhere inside it. Runs on the
+  parse tree, before the transform resolves glues on the substituted sentences."
+  [scenario]
+  (if-let [[_ [_ & headers] & rows] (some #(when (node? :examples %) %) (rest scenario))]
+    (let [base (into [:scenario] (remove #(node? :examples %)) (rest scenario))]
+      (for [[_ & values] rows
+            :let [params (zipmap (map #(str "<" (cell %) ">") headers)
+                                 (map cell values))]]
+        (walk/postwalk #(if (string? %) (reduce-kv string/replace % params) %) base)))
+    [scenario]))
+
+(defn- expand-scenario-outlines [spec]
+  (mapv (fn [node]
+          (if (node? :scenarios node)
+            (into [:scenarios] (mapcat expand-scenario) (rest node))
+            node))
+        spec))
+
 (defn ->feature-ast [source {:keys [pre-run pre-scenario-run post-scenario-run default-scenario-state] :as _options} ns-feature]
   (let [ast (parser/gherkin source)
         _ (when (insta/failure? ast)
             (throw (ex-info (str "Cannot parse feature:\n" (print-str ast))
                             {:source source :failure ast})))
+        ast (expand-scenario-outlines ast)
         feature (insta-trans/transform
                  {:SPEC              (fn [& s] (apply merge s))
                   :annotation        (fn [s] s)
