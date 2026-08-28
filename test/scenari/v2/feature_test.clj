@@ -5,6 +5,7 @@
             [kaocha.type.scenari]
             [scenari.v2.some-glue-ns]
             [kaocha.repl :as krepl]
+            [kaocha.testable :as testable]
             [testit.core :refer :all]))
 
 (def side-effect-atom (atom 0))
@@ -57,13 +58,43 @@ Feature: tagged feature
    :post-run               [#'post-run-side-effect]})
 
 (deftest post-run-test
-  (testing ":post-run runs once the feature is over, in both runners"
+  (testing ":post-run runs once the feature is over, in all three runners"
     (reset! post-run-atom 0)
-    ;; doall : core/run-features maps over the features, and the seq is lazy
-    (doall (v2/run-features #'scenari.v2.feature-test/post-run-feature))
-    (is (= 1 @post-run-atom))
+    (v2/run-features #'scenari.v2.feature-test/post-run-feature)
+    (is (= 1 @post-run-atom) "core/run-features must be eager, not a lazy map")
     (sc-test/run-features #'scenari.v2.feature-test/post-run-feature)
-    (is (= 2 @post-run-atom))))
+    (is (= 2 @post-run-atom))
+    ;; the kaocha suite type is the runner ./test.sh uses, and it used to load
+    ;; the feature without its :post-run at all
+    (let [suite (testable/load {:kaocha.testable/type           :kaocha.type/scenari
+                                :kaocha.testable/id             :scenario
+                                :kaocha/source-paths            ["src"]
+                                :kaocha/test-paths              ["test/scenari/v2"]
+                                :kaocha.type.scenari/glue-paths ["test/scenari/v2"]})
+          feature (->> (:kaocha.test-plan/tests suite)
+                       (filter #(= ::post-run-feature (:kaocha.testable/id %)))
+                       first)]
+      (is (seq (:kaocha.type.scenari/post-run feature))
+          "-load must carry the feature's :post-run onto the testable")
+      (testable/-run feature {})
+      (is (= 3 @post-run-atom)))))
+
+(deftest run-hooks-test
+  (testing "the teardown runs even when the body throws - a report, an ambiguous
+  glue or a pre-run hook can throw past run-step's catch, and that is the very
+  case :post-run exists for"
+    (let [journal (atom [])
+          hook    (fn [k] {:ref #(swap! journal conj k)})]
+      (is (thrown? Exception
+                   (v2/run-hooks {:pre-run [(hook :pre)] :post-run [(hook :post)]}
+                                 #(throw (ex-info "boom" {})))))
+      (is (= [:pre :post] @journal))
+      (reset! journal [])
+      (is (thrown? Exception
+                   (v2/run-hooks {:pre-run  [{:ref #(throw (ex-info "boom" {}))}]
+                                  :post-run [(hook :post)]}
+                                 (constantly nil))))
+      (is (= [:post] @journal) "a throwing pre-run must not skip the teardown"))))
 
 (deftest scenari-runner-test
   (testing "Using scenari runner"

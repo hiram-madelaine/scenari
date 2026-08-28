@@ -3,7 +3,7 @@
             [clojure.string :as string]
             [clojure.test :as t]
             [scenari.v2.step :refer [generate-step-fn]]
-            [scenari.v2.core :refer [run-step]]
+            [scenari.v2.core :refer [run-step run-hooks]]
             [scenari.utils :as utils]))
 
 (def ^:dynamic *feature-succeed* nil)
@@ -146,43 +146,43 @@
     (println (utils/color-str :grey (generate-step-fn step-sentence)))))
 
 (defn run-feature [feature]
-  (when-let [{{:keys [feature scenarios pre-run post-run annotations description]} :scenari/feature-ast} (meta feature)]
-    (doseq [{pre-run-fn :ref} pre-run]
-      (pre-run-fn))
-    (binding [*feature-succeed* (atom true)]
-      (t/do-report {:type        :begin-feature
-                    :feature     feature
-                    :annotations annotations
-                    :description description})
-      (doseq [scenario scenarios]
-        (t/do-report {:type :begin-scenario, :scenario scenario})
-        (let [_ (doseq [{pre-run-fn :ref} (:pre-run scenario)]
-                  (pre-run-fn))
-              scenario-result (loop [state (:default-state scenario)
-                                     [step & others] (:steps scenario)]
-                                (if-not step
-                                  true
-                                  ;; report after running, so the step carries its
-                                  ;; :status and the sentence can be coloured by it
-                                  (let [step-result (run-step step state)]
-                                    (t/do-report {:type :begin-step, :step step-result})
-                                    (if (= (:status step-result) :fail)
-                                      (do
-                                        (t/do-report {:type :step-failed, :exception (:exception step-result)})
-                                        (doseq [pending others]
-                                          (t/do-report {:type :begin-step, :step (assoc pending :status :pending)}))
-                                        false)
-                                      (do
-                                        (t/do-report {:type :step-succeed, :state (:output-state step-result)})
-                                        (recur (:output-state step-result) others))))))
-              _ (doseq [{post-run-fn :ref} (:post-run scenario)]
-                  (post-run-fn))]
-          (if scenario-result
-            (t/do-report {:type :scenario-succeed, :scenario scenario})
-            (t/do-report {:type :scenario-failed, :scenario scenario}))))
-      (doseq [{post-run-fn :ref} post-run]
-        (post-run-fn))
-      (t/do-report {:type :end-feature, :feature feature :succeed? @*feature-succeed*}))))
+  (when-let [{feature-ast :scenari/feature-ast} (meta feature)]
+    (let [{:keys [feature scenarios annotations description]} feature-ast]
+      (run-hooks
+       feature-ast
+       (fn []
+         (binding [*feature-succeed* (atom true)]
+           (t/do-report {:type        :begin-feature
+                         :feature     feature
+                         :annotations annotations
+                         :description description})
+           (doseq [scenario scenarios]
+             (t/do-report {:type :begin-scenario, :scenario scenario})
+             (let [scenario-result
+                   (run-hooks
+                    scenario
+                    (fn []
+                      (loop [state (:default-state scenario)
+                             [step & others] (:steps scenario)]
+                        (if-not step
+                          true
+                          ;; report after running, so the step carries its
+                          ;; :status and the sentence can be coloured by it
+                          (let [step-result (run-step step state)]
+                            (t/do-report {:type :begin-step, :step step-result})
+                            (if (= (:status step-result) :fail)
+                              (do
+                                (t/do-report {:type :step-failed, :exception (:exception step-result)})
+                                (doseq [pending others]
+                                  (t/do-report {:type :begin-step, :step (assoc pending :status :pending)}))
+                                false)
+                              (do
+                                (t/do-report {:type :step-succeed, :state (:output-state step-result)})
+                                (recur (:output-state step-result) others))))))))]
+               (if scenario-result
+                 (t/do-report {:type :scenario-succeed, :scenario scenario})
+                 (t/do-report {:type :scenario-failed, :scenario scenario}))))
+           (t/do-report {:type :end-feature, :feature feature :succeed? @*feature-succeed*})))))))
 
 (defn run-features
   ([] (apply run-features (filter #(some? (:scenari/feature-ast (meta %))) (vals (ns-interns *ns*)))))

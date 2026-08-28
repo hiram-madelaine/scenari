@@ -66,7 +66,7 @@
 (defmethod testable/-load :kaocha.type/scenari [testable]
   (require-all-ns (::glue-paths testable))
   (let [tests (for [test-path (:kaocha/test-paths testable)
-                    {{:keys [feature scenarios pre-run annotations description]} :scenari/feature-ast
+                    {{:keys [feature scenarios pre-run post-run annotations description]} :scenari/feature-ast
                      feature-content                                 :scenari/raw-feature
                      :as                                             feature-meta} (find-features-meta-in-dir test-path)]
                 {::testable/type         :kaocha.type/scenari-feature
@@ -81,7 +81,8 @@
                  :kaocha.test-plan/tests (mapv #(scenario->testable feature-content %) scenarios)
                  ::annotations           annotations
                  ::description           description
-                 ::pre-run               pre-run})]
+                 ::pre-run               pre-run
+                 ::post-run              post-run})]
     (assoc testable :kaocha.test-plan/tests tests)))
 
 (defmethod testable/-run :kaocha.type/scenari [testable test-plan]
@@ -96,14 +97,15 @@
                 :feature     (:kaocha.testable/desc testable)
                 :annotations (::annotations testable)
                 :description (::description testable)})
-  (doseq [{pre-run-fn :ref} (::pre-run testable)]
-    (pre-run-fn))
-  (let [results (testable/run-testables (:kaocha.test-plan/tests testable) test-plan)
-        testable (-> testable
-                     (dissoc :kaocha.test-plan/tests)
-                     (assoc :kaocha.result/tests results))]
-    (t/do-report {:type :end-feature})
-    testable))
+  (sc/run-hooks
+    {:pre-run (::pre-run testable) :post-run (::post-run testable)}
+    (fn []
+      (let [results (testable/run-testables (:kaocha.test-plan/tests testable) test-plan)
+            testable (-> testable
+                         (dissoc :kaocha.test-plan/tests)
+                         (assoc :kaocha.result/tests results))]
+        (t/do-report {:type :end-feature})
+        testable))))
 
 (defmethod testable/-run :kaocha.type/scenari-scenario [testable test-plan]
   (t/do-report {:type :begin-scenario :scenario testable})

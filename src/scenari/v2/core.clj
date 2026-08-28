@@ -232,14 +232,19 @@
         steps
         (recur steps output-state others)))))
 
+(defn run-hooks
+  "Encadre f par les hooks :pre-run et :post-run de x. Le teardown est dans un
+  finally : il doit tourner meme si un hook pre-run, la resolution d'un glue ou
+  un report leve - c'est exactement le cas pour lequel il existe."
+  [{:keys [pre-run post-run]} f]
+  (try (run! (fn [{pre-run-fn :ref}] (pre-run-fn)) pre-run)
+       (f)
+       (finally (run! (fn [{post-run-fn :ref}] (post-run-fn)) post-run))))
+
 (defn run-scenario [scenario]
-  (let [default-state (:default-state scenario)
-        pending-steps (map #(assoc % :status :pending) (:steps scenario))
-        _ (doseq [{pre-run-fn :ref} (:pre-run scenario)]
-            (pre-run-fn))
-        result-steps (run-steps pending-steps default-state pending-steps)
-        _ (doseq [{post-run-fn :ref} (:post-run scenario)]
-            (post-run-fn))]
+  (let [pending-steps (map #(assoc % :status :pending) (:steps scenario))
+        result-steps (run-hooks scenario
+                                #(run-steps pending-steps (:default-state scenario) pending-steps))]
     (-> scenario
         (assoc :steps result-steps)
         (assoc :status (if (contains? (set (map :status result-steps)) :fail) :fail :success)))))
@@ -252,19 +257,15 @@
       (recur scenarios others))))
 
 (defn run-feature [feature]
-  (let [{:keys [scenarios pre-run post-run] :as feature-ast} (get (meta feature) :scenari/feature-ast)]
-    (doseq [{pre-run-fn :ref} pre-run]
-      (pre-run-fn))
-    (let [scenarios (run-scenarios scenarios scenarios)]
-      (doseq [{post-run-fn :ref} post-run]
-        (post-run-fn))
-      (-> feature-ast
-          (assoc :scenarios scenarios)
-          (assoc :status (if (contains? (set (map :status scenarios)) :fail) :fail :success))))))
+  (let [{:keys [scenarios] :as feature-ast} (get (meta feature) :scenari/feature-ast)
+        scenarios (run-hooks feature-ast #(run-scenarios scenarios scenarios))]
+    (-> feature-ast
+        (assoc :scenarios scenarios)
+        (assoc :status (if (contains? (set (map :status scenarios)) :fail) :fail :success)))))
 
 (defn run-features
   ([] (apply run-features (filter #(some? (:scenari/feature-ast (meta %))) (vals (ns-interns *ns*)))))
-  ([& features] (map run-feature features)))
+  ([& features] (mapv run-feature features)))
 
 
 ;; ------------------------
