@@ -103,13 +103,16 @@
 (defn- node? [tag x] (and (vector? x) (= tag (first x))))
 
 (defn- expand-scenario
-  "Scenario outline: a scenario carrying an Examples table becomes one scenario
-  per row, with the <placeholders> substituted everywhere inside it. Runs on the
-  parse tree, before the transform resolves glues on the substituted sentences."
+  "Scenario outline: a scenario carrying Examples tables becomes one scenario per
+  row of every table -- gherkin allows several blocks, typically to label the
+  nominal rows apart from the edge cases -- with the <placeholders> substituted
+  everywhere inside it. Runs on the parse tree, before the transform resolves
+  glues on the substituted sentences."
   [scenario]
-  (if-let [[_ [_ & headers] & rows] (some #(when (node? :examples %) %) (rest scenario))]
+  (if-let [examples (seq (filter #(node? :examples %) (rest scenario)))]
     (let [base (into [:scenario] (remove #(node? :examples %)) (rest scenario))]
-      (for [[_ & values] rows
+      (for [[_ [_ & headers] & rows] examples
+            [_ & values] rows
             :let [params (zipmap (map #(str "<" (cell %) ">") headers)
                                  (map cell values))]]
         (walk/postwalk #(if (string? %) (reduce-kv string/replace % params) %) base)))

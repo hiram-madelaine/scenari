@@ -82,6 +82,19 @@
              (map :params (:steps (first scenarios))))
           "substituted values are parsed as step params, so glues receive them"))))
 
+(t/deftest several-examples-blocks-test
+  (t/testing "every Examples block of an outline is expanded, not just the first"
+    (let [scenarios (:scenarios (v2/->feature-ast
+                                 (str "Feature: f\n"
+                                      "Scenario Outline: s <x>\n"
+                                      "Given a number <x>\n"
+                                      "Examples: nominal\n"
+                                      "| x |\n| 1 |\n| 2 |\n"
+                                      "Examples: edge cases\n"
+                                      "| x |\n| 9 |\n")
+                                 {} *ns*))]
+      (is (= [" s 1" " s 2" " s 9"] (map :scenario-name scenarios))))))
+
 (t/deftest background-test
   (t/testing "background steps are spliced at the head of every scenario"
     (let [scenarios (:scenarios (v2/->feature-ast

@@ -61,7 +61,7 @@
            <rule_keyword>     = " (kw-translations :rule) "
            scenarios          = scenario*
            <scenario_keyword> = " (kw-translations :scenario) "
-           scenario           = <indent> annotations? <scenario_keyword> scenario_sentence <eol> description? steps examples?
+           scenario           = <indent> annotations? <scenario_keyword> scenario_sentence <eol> description? steps examples*
            <comment>          = (comment_line whitespace?)*
            <comment_line>     = <indent> <'#'> <sentence>
            steps              = (step_sentence | comment_line | <blank_line>)*
