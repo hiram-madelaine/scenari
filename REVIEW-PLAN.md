@@ -248,4 +248,8 @@ SCENARI_CORPUS=<corpus> ./test.sh           # filet de régression grammaire
 - **F15** — 2026-08-29 — `ab78d2d` — un `defglue` unique, les 4 macros en sont des alias
   et renvoient leur var.
 
+- **corpus** — 2026-08-29 — `2c216a2` — 221 features rejouées : 1 régression de F01, un
+  fichier finissant par des espaces sans saut de ligne final. `SPEC` se termine
+  désormais par `<indent>`. Corpus vert.
+
 Les 15 findings sont traités. Supprimer ce fichier à la fusion de la branche.
