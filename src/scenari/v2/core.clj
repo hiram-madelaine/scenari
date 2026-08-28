@@ -155,14 +155,26 @@
                      (mapcat #(if (node? :steps %) [(into [:description] lines) %] [%])))
             scenario))))
 
+(defn- with-annotations
+  "Per the gherkin spec a Rule's tags are inherited by the scenarios it groups,
+  and --focus-meta reads a scenario's tags off the scenario itself: merge them
+  into its own annotations, the way with-description does for the description."
+  [rule-tags scenario]
+  (if (empty? rule-tags)
+    scenario
+    (into [:scenario (into [:annotations] (concat rule-tags (rest (child :annotations scenario))))]
+          (remove #(node? :annotations %))
+          (rest scenario))))
+
 (defn- rule-scenarios
-  "A Rule only groups scenarios and may carry a Background and a description of
-  its own; scenari has no hierarchy level for it, so its scenarios are lifted
-  into the feature, carrying both."
+  "A Rule only groups scenarios and may carry a Background, a description and
+  tags of its own; scenari has no hierarchy level for it, so its scenarios are
+  lifted into the feature, carrying all three."
   [rule]
   (let [bg-steps  (rest (child :steps (child :background rule)))
-        rule-desc (rest (child :description rule))]
-    (map #(->> % (with-description rule-desc) (with-background bg-steps))
+        rule-desc (rest (child :description rule))
+        rule-tags (rest (child :annotations rule))]
+    (map #(->> % (with-annotations rule-tags) (with-description rule-desc) (with-background bg-steps))
          (rest (child :scenarios rule)))))
 
 (defn- normalize-scenarios

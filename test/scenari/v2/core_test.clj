@@ -116,6 +116,22 @@
          (v2/->feature-ast "Feature: f\nScenario Outline: s\nGiven <x>\nExamples:\n| x |\n"
                            {} *ns*)))))
 
+(t/deftest rule-tags-test
+  (t/testing "a Rule's tags are inherited by the scenarios it groups, per the
+  gherkin spec: without them `--focus-meta :slow` silently ran zero scenarios"
+    (is (= [#{"slow" "fast"} #{"slow"}]
+           (map :annotations
+                (:scenarios (v2/->feature-ast
+                             (str "Feature: f\n"
+                                  "@slow\n"
+                                  "Rule: r\n"
+                                  "@fast\n"
+                                  "Example: e1\n"
+                                  "When x\n"
+                                  "Example: e2\n"
+                                  "When y\n")
+                             {} *ns*)))))))
+
 (t/deftest background-test
   (t/testing "background steps are spliced at the head of every scenario"
     (let [scenarios (:scenarios (v2/->feature-ast
