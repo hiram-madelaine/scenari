@@ -18,8 +18,8 @@ Statuts : `TODO` · `WIP` · `OK` (corrigé + vérifié) · `SKIP` (écarté, mo
 | F03 | OK | B | `kaocha/type/scenari.clj:84` | `:post-run` feature jamais exécuté sous kaocha | feature_test |
 | F04 | OK | B | `core.clj:267` | `run-features` renvoie un `map` paresseux | feature_test |
 | F10 | OK | B | `core.clj:259`, `test.clj:183` | `:post-run` hors `finally` | feature_test |
-| F05 | TODO | C | `step.clj:16` | ClassCastException sur step sans glue ponctué | step_test |
-| F06 | TODO | C | `test.clj:56` | `%-0s` → `MissingFormatWidthException` | report_test |
+| F05 | OK | C | `step.clj:16` | ClassCastException sur step sans glue ponctué | step_test |
+| F06 | OK | C | `test.clj:56` | `%-0s` → `MissingFormatWidthException` | report_test |
 | F09 | TODO | D | `core.clj:115` | Substitution Outline chaînée / non déterministe | core_test |
 | F14 | TODO | D | `core.clj:112` | `Examples` sans ligne → scénario disparu, erreur trompeuse | core_test |
 | F12 | TODO | D | `core.clj:147` | Tags d'une `Rule` perdus | conformance |
@@ -234,3 +234,9 @@ SCENARI_CORPUS=<corpus> ./test.sh           # filet de régression grammaire
   itère sur tous les blocs (`filter` au lieu de `some`).
 - **F13** — 2026-08-29 — `1e36294` — une branche par délimiteur dans `doc_string`, même
   token à l'ouverture et à la fermeture ; corrige aussi les délimiteurs dépareillés.
+- **F05** — 2026-08-29 — `a6f7fd4` — `ex-info` recevait le `:reason` d'instaparse (un vecteur) ;
+  et surtout `words` était une liste blanche. Un mot est désormais tout ce qui n'ouvre pas
+  un token, regex partagé par les grammaires `sentence` et `step`.
+  Le stub `t/do-report` de `corpus_test.clj` est conservé : il sert aussi à taire le
+  rapport sur des centaines de fichiers, et n'a pas pu être vérifié sans corpus.
+- **F06** — 2026-08-29 — `ca249ef` — `(max 1 largeur)` dans `table-lines`.
