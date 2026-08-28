@@ -260,3 +260,21 @@ Scenario: scenario with multiline doc string
                [:step_sentence [:when] [:sentence "I provide documentation"]
                 [:doc_string [:doc_content "  Line 1\n  Line 2\n  Line 3\n  "]]]
                [:step_sentence [:then] [:sentence "it should be processed"]]]]]]))))
+
+(deftest feature-with-description-test
+  (is (= (gherkin "
+Feature: my feature
+  Une description libre sur plusieurs lignes,
+  qui n'est pas un commentaire.
+
+  Scenario: scenario 1
+    Given a step")
+         [:SPEC
+          [:narrative "my feature"]
+          [:description
+           "Une description libre sur plusieurs lignes,"
+           "qui n'est pas un commentaire."]
+          [:scenarios
+           [:scenario
+            [:scenario_sentence " scenario 1"]
+            [:steps [:step_sentence [:given] [:sentence "a step"]]]]]])))

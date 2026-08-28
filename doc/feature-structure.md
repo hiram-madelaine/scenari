@@ -9,6 +9,7 @@ A feature is represented as a map with the following keys:
 ```clojure
 {:scenarios [...]       ; Vector of scenario maps
  :feature [...]         ; Optional narrative elements
+ :description "..."     ; Optional free text between the Feature line and the first keyword
  :annotations #{...}    ; Optional annotations (tags)
  :pre-run [...]         ; Hook functions to execute before feature
  :status :success/:fail ; Status after execution

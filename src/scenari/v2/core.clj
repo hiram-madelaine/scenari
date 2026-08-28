@@ -96,6 +96,7 @@
      :annotation        (fn [s] s)
      :annotations       (fn [& s] {:annotations (set s)})
      :narrative         (fn [& n] {:feature (string/join " " n)})
+     :description       (fn [& lines] {:description (string/join "\n" lines)})
      :steps             (fn [& contents]
                           {:steps (vec (map-indexed (fn [i content]
                                                       (let [step (step->map content)]

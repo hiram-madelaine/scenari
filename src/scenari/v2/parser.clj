@@ -33,7 +33,7 @@
 
 (def gherkin (insta/parser
                       (str "
-           SPEC = <whitespace?> <comment?> annotations? narrative? <whitespace?> <comment?> scenarios
+           SPEC = <whitespace?> <comment?> annotations? narrative? description? <whitespace?> <comment?> scenarios
            narrative          = <'Narrative: '|'Feature: '> <whitespace?> #'.*' <eol>? (as_a I_want_to in_order_to |
                                                                                        as_a I_want_to so_that | in_order_to as_a I_want_to |
                                                                                        as_a in_order_to I_want_to)?
@@ -43,6 +43,13 @@
            as_a               = <whitespace>? <'As a '> #'.*' <eol>
            I_want_to          = <whitespace>? <'I want to '> #'.*' <eol>
            so_that            = <whitespace>? <'So that '> #'.*' <eol>
+           description        = description_line+
+           <description_line> = <whitespace?> !keyword_prefix #'[^\\r\\n]+'
+           <narrative_keyword>= 'As a ' | 'I want to ' | 'In order to ' | 'So that '
+           <keyword_prefix>   = scenario_keyword | step_keywords | examples-keywords | narrative_keyword
+                              | 'Feature:' | 'Narrative:' | 'Rule:' | 'Background:' | 'Example:'
+                              | 'Scenario Outline:' | 'Scenario Template:' | 'Scenarios:' | 'But '
+                              | '@' | '#' | '|' | '\"\"\"' | '*'
            scenarios          = (scenario <eol?> <eol?>)*
            <scenario_keyword> = " (kw-translations :scenario) "
            scenario           = <scenario_keyword> scenario_sentence <eol> steps examples?
