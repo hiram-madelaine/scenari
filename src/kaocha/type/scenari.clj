@@ -66,7 +66,7 @@
 (defmethod testable/-load :kaocha.type/scenari [testable]
   (require-all-ns (::glue-paths testable))
   (let [tests (for [test-path (:kaocha/test-paths testable)
-                    {{:keys [feature scenarios pre-run annotations]} :scenari/feature-ast
+                    {{:keys [feature scenarios pre-run annotations description]} :scenari/feature-ast
                      feature-content                                 :scenari/raw-feature
                      :as                                             feature-meta} (find-features-meta-in-dir test-path)]
                 {::testable/type         :kaocha.type/scenari-feature
@@ -79,6 +79,8 @@
                                                 (zipmap (map keyword annotations) (repeat true)))
                  ::testable/desc         feature
                  :kaocha.test-plan/tests (mapv #(scenario->testable feature-content %) scenarios)
+                 ::annotations           annotations
+                 ::description           description
                  ::pre-run               pre-run})]
     (assoc testable :kaocha.test-plan/tests tests)))
 
@@ -90,7 +92,10 @@
     testable))
 
 (defmethod testable/-run :kaocha.type/scenari-feature [testable test-plan]
-  (t/do-report {:type :begin-feature :feature (:kaocha.testable/desc testable)})
+  (t/do-report {:type        :begin-feature
+                :feature     (:kaocha.testable/desc testable)
+                :annotations (::annotations testable)
+                :description (::description testable)})
   (doseq [{pre-run-fn :ref} (::pre-run testable)]
     (pre-run-fn))
   (let [results (testable/run-testables (:kaocha.test-plan/tests testable) test-plan)
@@ -101,16 +106,14 @@
     testable))
 
 (defmethod testable/-run :kaocha.type/scenari-scenario [testable test-plan]
-  (t/do-report {:type :begin-scenario :scenario-name (:scenario-name testable)})
+  (t/do-report {:type :begin-scenario :scenario testable})
   (let [testable (sc/run-scenario testable)]
     (doseq [step (:steps testable)]
-      (condp = (:status step)
-        :success (t/do-report {:type :begin-step :step step})
-        :fail (do
-                (t/do-report {:type :begin-step :step step})
-                (t/do-report {:type :step-failed :exception (:exception step)}))
-        :pending nil
-        nil))
+      ;; every step is reported, :pending ones included, so the steps skipped
+      ;; after a failure still show up
+      (t/do-report {:type :begin-step :step step})
+      (when (= :fail (:status step))
+        (t/do-report {:type :step-failed :exception (:exception step)})))
     (-> testable
         (merge {:kaocha.result/count 1
                 :kaocha.result/pass  (if (= (:status testable) :success) 1 0)

@@ -152,23 +152,27 @@ Use clojure-test reporting system by printing execution.
 (require 'scenari.v2.test :refer [run-feature])
 (run-feature #'my-specification)
 ;; ________________________
-;; Feature :
-;; 
-;; Testing scenario :
-;; When I create a new product with name "iphone 6" and description "awesome phone"         (from /")
-;; Step failed
-;; create a new product failed at step  of
-;; 
-;; Testing scenario :
-;; When I invoke a GET request on location URL         (from scenari.v2.glue/"I invoke a GET request on location URL")
-;; =====> {:kix "lol"}
-;; Then I receive a 200 response         (from /"")
-;; Step failed
-;; get product info failed at step  of
-;; 
-;; ________________________
+;; @checkout
+;; Feature : shopping cart
+;;   A cart holds items and can be emptied.
 ;;
+;; @edge-case
+;; Testing scenario : removing too much
+;;   Given a cart with 2 items         (from user/"a cart with {number} items")
+;;   When I remove 5 items         (from user/"I remove {number} items")
+;;   Step failed
+;; java.lang.AssertionError: Assert failed: cannot remove 5 from 2
+;;   Then the cart holds 0 items         (from user/"the cart holds {number} items")
+;; removing too much FAILED
+;;
+;; ________________________
 ```
+
+Output is colorized following the gherkin syntax: keywords in bold cyan, `{string}`
+and `{number}` parameters in yellow, and the sentence itself in green, red or grey
+depending on whether the step passed, failed or never ran. Tags are cyan, free
+descriptions, docstrings and datatables grey. Coloring honours kaocha's
+`--color` / `--no-color`, so a piped or CI run can be kept plain.
 Useful to integrate a feature in a clojure test namespace
 
 
@@ -190,10 +194,12 @@ You are able to launch your scenario using kaocha repl utility function
 (require 'kaocha.repl :as krepl)
 (krepl/run :scenario)
 
-;; Testing scenario :  create a new product
+;; Testing scenario : create a new product
 ;;   When I invoke a GET request on location URL         (from scenari.v2.glue/"I invoke a GET request on location URL")
-;;   When I create a new product with name "iphone 6" and description "awesome phone" with properties         (from scenari.v2.glue/"I create a new product with name \"(.*)\" and description \"(.*)\" with properties")
-;;   Then I receive a response with an id 56422         (from scenari.v2.glue/"I receive a response with an id 56422")
+;;   When I create a new product with name "iphone 6" and description "awesome phone" with properties         (from scenari.v2.glue/"I create a new product with name {string} and description {string} with properties")
+;;       | size | weight |
+;;       | 6    | 2      |
+;;   Then I receive a response with an id 56422         (from scenari.v2.glue/"I receive a response with an id {number}")
 ;;   Then a location URL         (from scenari.v2.glue/"a location URL")
 ;; 
 ;; 

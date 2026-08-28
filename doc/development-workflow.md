@@ -256,27 +256,41 @@ clojure -M:test -m kaocha.runner --focus my-test  # Run specific test
 The test output will show each scenario and step execution:
 
 ```
---- my-project.shopping-cart-test ---
-Feature: Shopping Cart
+________________________
+@checkout
+Feature : Shopping Cart
+  A cart holds items and can be emptied.
 
-Testing scenario: Add item to empty cart
-  Given I have an empty shopping cart
-  When I add "Clojure Programming" book to the cart
-  Then my cart should contain 1 item
-  And the item should be "Clojure Programming" book
-
-PASS: my-project.shopping-cart-test/shopping-cart
+Testing scenario : Add item to empty cart
+  Given I have an empty shopping cart         (from my-project.glue/"I have an empty shopping cart")
+  When I add "Clojure Programming" book to the cart         (from my-project.glue/"I add {string} book to the cart")
+  Then my cart should contain 1 item         (from my-project.glue/"my cart should contain {number} item")
+  And the item should be "Clojure Programming" book         (from my-project.glue/"the item should be {string} book")
+________________________
 ```
+
+The output is colorized along the gherkin syntax - bold cyan keywords, yellow
+`{string}`/`{number}` parameters, cyan tags, grey descriptions, docstrings and
+datatables - and the sentence takes the colour of the step's outcome: green when it
+passed, red when it failed, grey when it never ran. Pass `--no-color` (or run under
+kaocha with colour disabled) for plain output.
 
 ### Debugging Tests
 
 When a step fails, Scenari provides information about the failure:
 
 ```
-Step failed: "my cart should contain 1 item"
-Expected: 1
-  Actual: 0
+  Then my cart should contain 1 item         (from my-project.glue/"my cart should contain {number} item")
+  Step failed
+FAIL in () (glue.clj:42)
+expected: (= 1 (count (:items state)))
+  actual: (not (= 1 0))
+  And the item should be "Clojure Programming" book         (from my-project.glue/"the item should be {string} book")
+Add item to empty cart FAILED
 ```
+
+The failing step is printed in red, and every step after it in grey - they are
+reported as pending rather than dropped, so the scenario stays readable end to end.
 
 The state passed between steps can be examined in the test output when there's a failure.
 

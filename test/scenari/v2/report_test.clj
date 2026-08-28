@@ -1,0 +1,66 @@
+(ns scenari.v2.report-test
+  (:require [clojure.string :as string]
+            [clojure.test :refer [deftest testing is]]
+            [clojure.test :as t]
+            [kaocha.output :as output]
+            [scenari.v2.test]))
+
+;; captured at load time: kaocha redefines the clojure.test/report var while it
+;; runs, and scenari's defmethods live on the original multimethod
+(def ^:private report clojure.test/report)
+
+(def ^:private esc (str (char 27)))
+
+(defn- render [event]
+  (let [out (java.io.StringWriter.)]
+    (binding [t/*test-out* out]
+      (report event))
+    (str out)))
+
+(def ^:private a-step
+  {:sentence-keyword :when
+   :sentence         "I create a product named \"iphone 6\" with properties"
+   :status           :success
+   :glue             {:ns   'my.glue
+                      :step "I create a product named {string} with properties"}
+   :params           [{:type :value :val "iphone 6"}
+                      {:type :table :val [{:size "6" :weight "2"}
+                                          {:size "12" :weight "3"}]}]})
+
+(deftest begin-step-rendering-test
+  (testing "without colors: keyword, sentence, glue source and the datatable, aligned"
+    (binding [output/*colored-output* false]
+      (let [out (render {:type :begin-step :step a-step})]
+        (is (not (string/includes? out esc))
+            "--no-color must not leak any ANSI escape")
+        (is (= (str "  When I create a product named \"iphone 6\" with properties"
+                    "         (from my.glue/\"I create a product named {string} with properties\")\n"
+                    "      | size | weight |\n"
+                    "      | 6    | 2      |\n"
+                    "      | 12   | 3      |\n")
+               out)))))
+
+  (testing "without colors: a docstring param is rendered as its gherkin block"
+    (binding [output/*colored-output* false]
+      (is (= (str "  Given a doc string\n"
+                  "      \"\"\"\n"
+                  "      This is markdown\n"
+                  "      \"\"\"\n")
+             (render {:type :begin-step
+                      :step {:sentence-keyword :given
+                             :sentence         "a doc string"
+                             :status           :success
+                             :params           [{:type :doc-string :val "This is markdown"}]}})))))
+
+  (testing "with colors: bold cyan keyword, yellow params, sentence colored by status"
+    (binding [output/*colored-output* true]
+      (let [out (render {:type :begin-step :step a-step})]
+        (is (string/includes? out (str esc "[1;36mWhen" esc "[0m")) "keyword in bold cyan")
+        (is (string/includes? out (str esc "[33m\"iphone 6\"" esc "[0m")) "param in yellow")
+        (is (string/includes? out (str esc "[32mI create a product named")) "success sentence in green"))
+      (is (string/includes? (render {:type :begin-step :step (assoc a-step :status :fail)})
+                            (str esc "[31mI create a product named"))
+          "failed sentence in red")
+      (is (string/includes? (render {:type :begin-step :step (assoc a-step :status :pending)})
+                            (str esc "[90mI create a product named"))
+          "pending sentence in grey"))))
