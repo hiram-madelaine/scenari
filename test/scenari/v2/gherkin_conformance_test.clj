@@ -91,6 +91,11 @@ Given a")
            (get-in (gherkin "Feature: f\nScenario: s\nGiven a\n| a \\| b | c |\n| 1 | 2 |")
                    [2 1 2 1 3 1]))))
 
+  (testing "Background, avec ou sans nom"
+    (is (ok? "Feature: f\nBackground:\nGiven a\nScenario: s\nGiven b"))
+    (is (ok? "Feature: f\nBackground: un nom\nGiven a\nScenario: s\nGiven b"))
+    (is (ok? "Feature: f\nContexte :\nEtant donné que a\nScénario : s\nQuand b")))
+
   (testing "section Examples"
     (is (ok? "Feature: f\nScenario: s\nGiven <x>\nExamples:\n| x |\n| 1 |")))
 
@@ -114,9 +119,6 @@ Given a")
     (is (ok? "Scenario: s\nGiven a"))))
 
 (deftest non-supporte-test
-  (testing "Background"
-    (is (ko? "Feature: f\nBackground:\nGiven a\nScenario: s\nGiven b")))
-
   (testing "Rule"
     (is (ko? "Feature: f\nRule: r\nScenario: s\nGiven a")))
 

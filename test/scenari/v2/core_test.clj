@@ -79,3 +79,22 @@
       (is (= [[{:type :value :val 1}] [{:type :value :val 2}] [{:type :value :val 3}]]
              (map :params (:steps (first scenarios))))
           "substituted values are parsed as step params, so glues receive them"))))
+
+(t/deftest background-test
+  (t/testing "background steps are spliced at the head of every scenario"
+    (let [scenarios (:scenarios (v2/->feature-ast
+                                 (str "Feature: f\n"
+                                      "Background: a common setup\n"
+                                      "Given a logged user\n"
+                                      "And a cart\n"
+                                      "\n"
+                                      "Scenario: s1\n"
+                                      "When I buy\n"
+                                      "Scenario: s2\n"
+                                      "When I leave")
+                                 {} *ns*))]
+      (is (= [["a logged user" "a cart" "I buy"]
+              ["a logged user" "a cart" "I leave"]]
+             (map #(map :sentence (:steps %)) scenarios)))
+      (is (= [[0 1 2] [0 1 2]] (map #(map :order (:steps %)) scenarios))
+          "spliced steps are renumbered, the runner relies on :order"))))

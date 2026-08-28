@@ -113,19 +113,37 @@
         (walk/postwalk #(if (string? %) (reduce-kv string/replace % params) %) base)))
     [scenario]))
 
-(defn- expand-scenario-outlines [spec]
+(defn- with-background
+  "Background steps run before each scenario: splice them at the head of the
+  scenario's own steps, so nothing downstream needs to know about backgrounds."
+  [bg-steps scenario]
   (mapv (fn [node]
-          (if (node? :scenarios node)
-            (into [:scenarios] (mapcat expand-scenario) (rest node))
+          (if (node? :steps node)
+            (into [:steps] (concat bg-steps (rest node)))
             node))
-        spec))
+        scenario))
+
+(defn- normalize-scenarios
+  "Pre-pass on the parse tree: splice in the Background and expand the scenario
+  outlines, so the transform below only ever sees plain scenarios."
+  [spec]
+  (let [bg-steps (rest (second (some #(when (node? :background %) %) (rest spec))))]
+    (into [] (comp (remove #(node? :background %))
+                   (map (fn [node]
+                          (if (node? :scenarios node)
+                            (into [:scenarios]
+                                  (comp (map #(with-background bg-steps %))
+                                        (mapcat expand-scenario))
+                                  (rest node))
+                            node))))
+          spec)))
 
 (defn ->feature-ast [source {:keys [pre-run pre-scenario-run post-scenario-run default-scenario-state] :as _options} ns-feature]
   (let [ast (parser/gherkin source)
         _ (when (insta/failure? ast)
             (throw (ex-info (str "Cannot parse feature:\n" (print-str ast))
                             {:source source :failure ast})))
-        ast (expand-scenario-outlines ast)
+        ast (normalize-scenarios ast)
         feature (insta-trans/transform
                  {:SPEC              (fn [& s] (apply merge s))
                   :annotation        (fn [s] s)

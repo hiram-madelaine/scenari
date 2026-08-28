@@ -3,6 +3,7 @@
 
 (def kw-translations-data {:fr {:given    "Etant donné que " :when "Quand " :and ["Et " "Mais " "* "]
                                 :then     "Alors " :scenario ["Scénario :" "Plan du scénario :" "Exemple :"]
+                                :background "Contexte :"
                                 :examples ["Exemples :" "Scénarios :"]
                                 :narrative "Narrative: "
                                 :as_a "En tant que "
@@ -11,6 +12,7 @@
                                 :so_that " afin de "}
                            :en {:given    "Given " :when "When " :and ["And " "But " "* "]
                                 :then     "Then " :scenario ["Scenario:" "Scenario Outline:" "Scenario Template:" "Example:"]
+                                :background "Background:"
                                 :examples ["Examples:" "Scenarios:"]
                                 :narrative "Narrative: "
                                 :as_a "As a "
@@ -34,7 +36,7 @@
 
 (def gherkin (insta/parser
                       (str "
-           SPEC = <whitespace?> <comment?> annotations? narrative? description? <whitespace?> <comment?> scenarios
+           SPEC = <whitespace?> <comment?> annotations? narrative? description? <whitespace?> <comment?> background? scenarios
            narrative          = <'Narrative: '|'Feature: '> <whitespace?> #'.*' <eol>? (as_a I_want_to in_order_to |
                                                                                        as_a I_want_to so_that | in_order_to as_a I_want_to |
                                                                                        as_a in_order_to I_want_to)?
@@ -48,8 +50,10 @@
            <description_line> = <whitespace?> !keyword_prefix #'[^\\r\\n]+'
            <narrative_keyword>= 'As a ' | 'I want to ' | 'In order to ' | 'So that '
            <keyword_prefix>   = scenario_keyword | step_keywords | examples-keywords | narrative_keyword
-                              | 'Feature:' | 'Narrative:' | 'Rule:' | 'Background:'
+                              | 'Feature:' | 'Narrative:' | 'Rule:' | background_keyword
                               | '@' | '#' | '|' | '\"\"\"' | '*'
+           background         = <whitespace?> <background_keyword> <#'[^\\r\\n]*'> <eol> steps
+           <background_keyword>= " (kw-translations :background) "
            scenarios          = (scenario <eol?> <eol?>)*
            <scenario_keyword> = " (kw-translations :scenario) "
            scenario           = <scenario_keyword> scenario_sentence <eol> steps examples?
