@@ -1,17 +1,17 @@
 (ns scenari.v2.parser
   (:require [instaparse.core :as insta]))
 
-(def kw-translations-data {:fr {:given    "Etant donné que " :when "Quand " :and "Et "
-                                :then     "Alors " :scenario "Scénario :"
-                                :examples "Exemples :"
+(def kw-translations-data {:fr {:given    "Etant donné que " :when "Quand " :and ["Et " "Mais " "* "]
+                                :then     "Alors " :scenario ["Scénario :" "Plan du scénario :" "Exemple :"]
+                                :examples ["Exemples :" "Scénarios :"]
                                 :narrative "Narrative: "
                                 :as_a "En tant que "
                                 :in_order_to " afin de "
                                 :I_want_to " Je veux "
                                 :so_that " afin de "}
-                           :en {:given    "Given " :when "When " :and "And "
-                                :then     "Then " :scenario "Scenario:"
-                                :examples "Examples:"
+                           :en {:given    "Given " :when "When " :and ["And " "But " "* "]
+                                :then     "Then " :scenario ["Scenario:" "Scenario Outline:" "Scenario Template:" "Example:"]
+                                :examples ["Examples:" "Scenarios:"]
                                 :narrative "Narrative: "
                                 :as_a "As a "
                                 :in_order_to " in order to "
@@ -19,15 +19,16 @@
                                 :so_that " so that "}})
 
 (defn- kw-translations
-  "return a string consisting of appending the keyword separated by | for inclusion in gherkin grammar"
+  "return a string consisting of appending the keyword separated by | for inclusion in gherkin grammar.
+  A translation is either a string or a vector of synonyms."
   ([kw data]
-   (apply str
-          (interpose "|"
-                     (map (comp #(str "'" % "'")
-                                val
-                                first
-                                (partial filter (fn [e] (= (key e) kw))))
-                          (vals data)))))
+   (->> (vals data)
+        (mapcat (fn [lang] (let [t (get lang kw)] (if (vector? t) t [t]))))
+        (remove nil?)
+        (distinct)
+        (map #(str "'" % "'"))
+        (interpose "|")
+        (apply str)))
   ([kw]
    (kw-translations kw kw-translations-data)))
 
@@ -47,8 +48,7 @@
            <description_line> = <whitespace?> !keyword_prefix #'[^\\r\\n]+'
            <narrative_keyword>= 'As a ' | 'I want to ' | 'In order to ' | 'So that '
            <keyword_prefix>   = scenario_keyword | step_keywords | examples-keywords | narrative_keyword
-                              | 'Feature:' | 'Narrative:' | 'Rule:' | 'Background:' | 'Example:'
-                              | 'Scenario Outline:' | 'Scenario Template:' | 'Scenarios:' | 'But '
+                              | 'Feature:' | 'Narrative:' | 'Rule:' | 'Background:'
                               | '@' | '#' | '|' | '\"\"\"' | '*'
            scenarios          = (scenario <eol?> <eol?>)*
            <scenario_keyword> = " (kw-translations :scenario) "
@@ -67,8 +67,9 @@
            scenario_sentence  = #'.*'
            step_sentence      = step_keywords sentence (<eol> (tab_params | doc_string))?
            sentence           = #'.*'
-           doc_string         = <whitespace?> <'\"\"\"'> <eol> doc_content <whitespace?> <'\"\"\"'>
-           doc_content        = #'(?:[^\"]+|\"(?!\"\"))*'
+           doc_string         = <whitespace?> <doc_delim> <eol> doc_content <whitespace?> <doc_delim>
+           <doc_delim>        = '\"\"\"' | '```'
+           doc_content        = #'(?:[^\"`]+|\"(?!\"\")|`(?!``))*'
            examples           = <whitespace?> examples-keywords <eol> header row* <eol?>
            <examples-keywords>= <" (kw-translations :examples) ">
            tab_params         = header row* <eol?>

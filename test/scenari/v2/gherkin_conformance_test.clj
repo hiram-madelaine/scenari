@@ -50,8 +50,23 @@ Given a")
   (testing "mots-clés français"
     (is (ok? "Feature: f\nScénario : s\nEtant donné que a\nQuand b\nAlors c\nEt d")))
 
+  (testing "synonymes français : Plan du scénario, Exemple, Mais, Exemples, Scénarios"
+    (is (ok? "Feature: f\nPlan du scénario : s\nEtant donné que a\nMais b\nExemples :\n| x |\n| 1 |"))
+    (is (ok? "Feature: f\nExemple : s\nQuand x\nScénarios :\n| n |\n| 1 |")))
+
   (testing "commentaires en tête de fichier et entre les steps"
     (is (ok? "# un commentaire\nFeature: f\nScenario: s\n# un autre\nGiven a")))
+
+  (testing "But et * sont des synonymes de And"
+    (is (= [:steps [:step_sentence [:given] [:sentence "a"]]
+            [:step_sentence [:and] [:sentence "b"]]
+            [:step_sentence [:and] [:sentence "c"]]]
+           (get-in (gherkin "Feature: f\nScenario: s\nGiven a\nBut b\n* c") [2 1 2]))))
+
+  (testing "Example:, Scenario Outline:, Scenario Template: sont des synonymes de Scenario:"
+    (is (ok? "Feature: f\nExample: s\nGiven a"))
+    (is (ok? "Feature: f\nScenario Outline: s\nGiven <x>\nExamples:\n| x |\n| 1 |"))
+    (is (ok? "Feature: f\nScenario Template: s\nGiven <x>\nScenarios:\n| x |\n| 1 |")))
 
   (testing "data table attachée à un step"
     (is (= [:tab_params [:header " nom " " prix "] [:row " iPhone " " 500 "]]
@@ -84,6 +99,11 @@ Given a")
            (get-in (gherkin "Feature: f\nScenario: s\nGiven a\n  \"\"\"\n  ligne 1\n    ligne 2\n  \"\"\"")
                    [2 1 2 1 3]))))
 
+  (testing "doc string délimitée par des backticks"
+    (is (= [:doc_string [:doc_content "  du `code` inline\n  "]]
+           (get-in (gherkin "Feature: f\nScenario: s\nGiven a\n  ```\n  du `code` inline\n  ```")
+                   [2 1 2 1 3]))))
+
   (testing "fins de ligne Windows"
     (is (ok? "Feature: f\r\nScenario: s\r\nGiven a\r\n")))
 
@@ -94,30 +114,14 @@ Given a")
     (is (ok? "Scenario: s\nGiven a"))))
 
 (deftest non-supporte-test
-  (testing "mot-clé But"
-    (is (ko? "Feature: f\nScenario: s\nGiven a\nBut b")))
-
-  (testing "step générique *"
-    (is (ko? "Feature: f\nScenario: s\n* a step")))
-
   (testing "Background"
     (is (ko? "Feature: f\nBackground:\nGiven a\nScenario: s\nGiven b")))
 
   (testing "Rule"
     (is (ko? "Feature: f\nRule: r\nScenario: s\nGiven a")))
 
-  (testing "Example: (synonyme de Scenario:)"
-    (is (ko? "Feature: f\nExample: s\nGiven a")))
-
-  (testing "Scenario Outline / Scenario Template"
-    (is (ko? "Feature: f\nScenario Outline: s\nGiven <x>\nExamples:\n| x |\n| 1 |"))
-    (is (ko? "Feature: f\nScenario Template: s\nGiven <x>\nScenarios:\n| x |\n| 1 |")))
-
   (testing "tags au niveau scénario"
     (is (ko? "Feature: f\n@tag\nScenario: s\nGiven a")))
-
-  (testing "doc string délimitée par des backticks"
-    (is (ko? "Feature: f\nScenario: s\nGiven a\n```\ndoc\n```")))
 
   (testing "le mot-clé Feature n'a pas de traduction : la ligne tombe dans la
   description et le nom de la feature est perdu, sans erreur"
