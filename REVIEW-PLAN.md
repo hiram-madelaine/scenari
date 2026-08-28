@@ -20,11 +20,11 @@ Statuts : `TODO` · `WIP` · `OK` (corrigé + vérifié) · `SKIP` (écarté, mo
 | F10 | OK | B | `core.clj:259`, `test.clj:183` | `:post-run` hors `finally` | feature_test |
 | F05 | OK | C | `step.clj:16` | ClassCastException sur step sans glue ponctué | step_test |
 | F06 | OK | C | `test.clj:56` | `%-0s` → `MissingFormatWidthException` | report_test |
-| F09 | TODO | D | `core.clj:115` | Substitution Outline chaînée / non déterministe | core_test |
-| F14 | TODO | D | `core.clj:112` | `Examples` sans ligne → scénario disparu, erreur trompeuse | core_test |
-| F12 | TODO | D | `core.clj:147` | Tags d'une `Rule` perdus | conformance |
-| F11 | TODO | D | `kaocha/type/scenari.clj:52` | Ids kaocha dupliqués sur les lignes d'Outline | manuel |
-| F15 | TODO | E | `core.clj:295` | Les macros `def*` renvoient `nil` + duplication ×4 | core_test |
+| F09 | OK | D | `core.clj:115` | Substitution Outline chaînée / non déterministe | core_test |
+| F14 | OK | D | `core.clj:112` | `Examples` sans ligne → scénario disparu, erreur trompeuse | core_test |
+| F12 | OK | D | `core.clj:147` | Tags d'une `Rule` perdus | conformance |
+| F11 | OK | D | `kaocha/type/scenari.clj:52` | Ids kaocha dupliqués sur les lignes d'Outline | manuel |
+| F15 | OK | E | `core.clj:295` | Les macros `def*` renvoient `nil` + duplication ×4 | core_test |
 
 ## Ordre et dépendances
 
@@ -240,3 +240,12 @@ SCENARI_CORPUS=<corpus> ./test.sh           # filet de régression grammaire
   Le stub `t/do-report` de `corpus_test.clj` est conservé : il sert aussi à taire le
   rapport sur des centaines de fichiers, et n'a pas pu être vérifié sans corpus.
 - **F06** — 2026-08-29 — `ca249ef` — `(max 1 largeur)` dans `table-lines`.
+- **F09 + F14** — 2026-08-29 — `95c6a1b` — une passe de `string/replace` sur `<...>` ;
+  et une table `Examples` sans ligne lève en nommant le scénario.
+- **F12** — 2026-08-29 — `ed43685` — `with-annotations`, calqué sur `with-description`.
+- **F11** — 2026-08-29 — `41ef54e` — `with-unique-ids` dans `-load` : les ids répétés sont
+  numérotés. Vérifié : `--focus :constant-name-2` sélectionne 1 test.
+- **F15** — 2026-08-29 — `ab78d2d` — un `defglue` unique, les 4 macros en sont des alias
+  et renvoient leur var.
+
+Les 15 findings sont traités. Supprimer ce fichier à la fusion de la branche.
