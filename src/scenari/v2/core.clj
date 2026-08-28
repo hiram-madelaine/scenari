@@ -167,7 +167,7 @@
                             node))))
           spec)))
 
-(defn ->feature-ast [source {:keys [pre-run pre-scenario-run post-scenario-run default-scenario-state] :as _options} ns-feature]
+(defn ->feature-ast [source {:keys [pre-run post-run pre-scenario-run post-scenario-run default-scenario-state] :as _options} ns-feature]
   (let [ast (parser/gherkin source)
         _ (when (insta/failure? ast)
             (throw (ex-info (str "Cannot parse feature:\n" (print-str ast))
@@ -193,7 +193,8 @@
                                                              :default-state (or default-scenario-state {})}
                                                             contents))
                   :scenarios         (fn [& contents] {:scenarios (into [] contents)
-                                                       :pre-run   (map #(assoc (meta %) :ref %) pre-run)})}
+                                                       :pre-run   (map #(assoc (meta %) :ref %) pre-run)
+                                                       :post-run  (map #(assoc (meta %) :ref %) post-run)})}
                  ast)]
     (when (empty? (:scenarios feature))
       (throw (ex-info (str "Feature has no scenario. Lines whose keyword is not recognized "
@@ -251,10 +252,12 @@
       (recur scenarios others))))
 
 (defn run-feature [feature]
-  (let [{:keys [scenarios pre-run] :as feature-ast} (get (meta feature) :scenari/feature-ast)]
+  (let [{:keys [scenarios pre-run post-run] :as feature-ast} (get (meta feature) :scenari/feature-ast)]
     (doseq [{pre-run-fn :ref} pre-run]
       (pre-run-fn))
     (let [scenarios (run-scenarios scenarios scenarios)]
+      (doseq [{post-run-fn :ref} post-run]
+        (post-run-fn))
       (-> feature-ast
           (assoc :scenarios scenarios)
           (assoc :status (if (contains? (set (map :status scenarios)) :fail) :fail :success))))))

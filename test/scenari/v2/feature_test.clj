@@ -46,6 +46,25 @@ Feature: tagged feature
       Then My initial state contains foo"
   {:default-scenario-state {:foo 1}})
 
+(def post-run-atom (atom 0))
+(defn post-run-side-effect [] (swap! post-run-atom inc))
+
+(v2/deffeature post-run-feature
+  "Feature: teardown at the feature level
+  Scenario: Scenario description
+      Then My initial state contains foo"
+  {:default-scenario-state {:foo 1}
+   :post-run               [#'post-run-side-effect]})
+
+(deftest post-run-test
+  (testing ":post-run runs once the feature is over, in both runners"
+    (reset! post-run-atom 0)
+    ;; doall : core/run-features maps over the features, and the seq is lazy
+    (doall (v2/run-features #'scenari.v2.feature-test/post-run-feature))
+    (is (= 1 @post-run-atom))
+    (sc-test/run-features #'scenari.v2.feature-test/post-run-feature)
+    (is (= 2 @post-run-atom))))
+
 (deftest scenari-runner-test
   (testing "Using scenari runner"
     (testing "execute success feature"

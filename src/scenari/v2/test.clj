@@ -146,7 +146,7 @@
     (println (utils/color-str :grey (generate-step-fn step-sentence)))))
 
 (defn run-feature [feature]
-  (when-let [{{:keys [feature scenarios pre-run annotations description]} :scenari/feature-ast} (meta feature)]
+  (when-let [{{:keys [feature scenarios pre-run post-run annotations description]} :scenari/feature-ast} (meta feature)]
     (doseq [{pre-run-fn :ref} pre-run]
       (pre-run-fn))
     (binding [*feature-succeed* (atom true)]
@@ -180,6 +180,8 @@
           (if scenario-result
             (t/do-report {:type :scenario-succeed, :scenario scenario})
             (t/do-report {:type :scenario-failed, :scenario scenario}))))
+      (doseq [{post-run-fn :ref} post-run]
+        (post-run-fn))
       (t/do-report {:type :end-feature, :feature feature :succeed? @*feature-succeed*}))))
 
 (defn run-features
