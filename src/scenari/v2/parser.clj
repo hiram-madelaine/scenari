@@ -71,11 +71,12 @@
            doc_content        = #'(?:[^\"]+|\"(?!\"\"))*'
            examples           = <whitespace?> examples-keywords <eol> header row* <eol?>
            <examples-keywords>= <" (kw-translations :examples) ">
-           tab_params         = <whitespace?> header row* <eol?>
-           header             = <whitespace?> (<'|'> column_name)+ <'|'> <eol?>
-           <column_name>      = <whitespace?> #'[^|]*' <whitespace?>
-           row                = <whitespace?> (<'|'> <whitespace?> value )+ <whitespace?> <'|'> <eol?>
-           <value>            = #'[^|]*'
+           tab_params         = header row* <eol?>
+           header             = <indent> <'|'> (column_name <'|'>)+
+           <column_name>      = #'(?:[^|\\\\\r\n]|\\\\.)*'
+           row                = <eol> <indent> <'|'> (value <'|'>)+
+           <value>            = #'(?:[^|\\\\\r\n]|\\\\.)*'
+           <indent>           = <#'[ \t]*'>
            word               = #'[\\p{L}$€]+'
            number             = #'[0-9]+'
            ")))

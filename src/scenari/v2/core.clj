@@ -15,10 +15,16 @@
 ;;          LOAD
 ;; ------------------------
 
+(defn cell
+  "A table cell, trimmed and unescaped: gherkin escapes \\| \\\\ and \\n inside cells."
+  [s]
+  (string/replace (string/trim s) #"\\(.)"
+                  (fn [[_ c]] (case c "n" "\n" c))))
+
 (defn tab-params->params [[param-type [_ & headers] & rows]]
   (when (= :tab_params param-type)
-    (let [param-names (map (comp keyword string/trim) headers)
-          params-values (map (comp #(map string/trim %) rest) rows)]
+    (let [param-names (map (comp keyword cell) headers)
+          params-values (map (comp #(map cell %) rest) rows)]
       [{:type :table :val (mapv #(apply hash-map (interleave param-names %)) params-values)}])))
 
 (defn doc-string->params [[param-type [_ content]]]

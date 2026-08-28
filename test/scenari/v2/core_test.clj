@@ -46,3 +46,13 @@
   (t/testing "a feature whose keywords are all unrecognized is swallowed as description, not silently empty"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo #"no scenario"
                           (v2/->feature-ast "Fonctionnalite: f\nScenario ! s\nSoit a" {} *ns*)))))
+
+(t/deftest table-cell-escapes-test
+  (t/testing "a cell is trimmed and unescaped"
+    (is (= [{:nom "a | b" :regex "x\ny"}]
+           (-> (v2/->feature-ast (str "Feature: f\nScenario: s\nGiven a\n"
+                                      "| nom | regex |\n"
+                                      "| a \\| b | x\\ny |")
+                                 {} *ns*)
+               :scenarios first :steps first :params first :val))
+        "\\| stays in its cell instead of splitting it, \\n becomes a newline")))

@@ -72,9 +72,9 @@ Examples:
             [:scenario_sentence " test example section"]
             [:steps [:step_sentence [:given] [:sentence "a location URL"]]]
             [:examples
-             [:header " product_name  " "product_desc     "]
-             [:row " iPhone 6      " "telephone        "]
-             [:row " iPhone 6+     " "bigger telephone "]
+             [:header " product_name  " " product_desc     "]
+             [:row " iPhone 6      " " telephone        "]
+             [:row " iPhone 6+     " " bigger telephone "]
              [:row " iPad          " " tablet           "]]]]]
          )))
 
@@ -96,9 +96,9 @@ Examples:
             [:scenario_sentence " test example section"]
             [:steps [:step_sentence [:given] [:sentence "a location URL"]]]
             [:examples
-             [:header " product_name  " "product_desc     "]
-             [:row " iPhone 6      " "telephone        "]
-             [:row " iPhone 6+     " "bigger telephone "]
+             [:header " product_name  " " product_desc     "]
+             [:row " iPhone 6      " " telephone        "]
+             [:row " iPhone 6+     " " bigger telephone "]
              [:row " iPad          " " tablet           "]]]]]
          )))
 

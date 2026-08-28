@@ -53,6 +53,29 @@ Given a")
   (testing "commentaires en tête de fichier et entre les steps"
     (is (ok? "# un commentaire\nFeature: f\nScenario: s\n# un autre\nGiven a")))
 
+  (testing "data table attachée à un step"
+    (is (= [:tab_params [:header " nom " " prix "] [:row " iPhone " " 500 "]]
+           (get-in (gherkin "Feature: f\nScenario: s\nGiven a\n| nom | prix |\n| iPhone | 500 |")
+                   [2 1 2 1 3]))))
+
+  (testing "case vide : la ligne garde ses colonnes, à toute position"
+    (let [tab (fn [body] (get-in (gherkin (str "Feature: f\nScenario: s\nGiven a\n" body))
+                                 [2 1 2 1 3]))]
+      (is (= [:tab_params [:header " a " " b " " c "] [:row " 1 " "   " " 3 "]]
+             (tab "| a | b | c |\n| 1 |   | 3 |"))
+          "une case vide au milieu ne doit pas scinder la ligne en deux")
+      (is (= [:tab_params [:header " a " " b " " c "] [:row " 1 " " 2 " "   "]]
+             (tab "| a | b | c |\n| 1 | 2 |   |")))
+      (is (= [:tab_params [:header " a " " b " " c "] [:row "   " " 2 " " 3 "]]
+             (tab "| a | b | c |\n|   | 2 | 3 |")))
+      (is (= [:tab_params [:header " a " " b "] [:row " 1 " "  "] [:row " 3 " " 4 "]]
+             (tab "| a | b |\n| 1 |  |\n| 3 | 4 |")))))
+
+  (testing "pipe échappé dans une cellule"
+    (is (= [:header " a \\| b " " c "]
+           (get-in (gherkin "Feature: f\nScenario: s\nGiven a\n| a \\| b | c |\n| 1 | 2 |")
+                   [2 1 2 1 3 1]))))
+
   (testing "section Examples"
     (is (ok? "Feature: f\nScenario: s\nGiven <x>\nExamples:\n| x |\n| 1 |")))
 
