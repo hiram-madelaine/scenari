@@ -185,6 +185,16 @@ Given a")
            (get-in (gherkin "Feature: f\nScenario: s\nGiven a\n  ```\n  du `code` inline\n  ```")
                    [2 1 2 1 3]))))
 
+  (testing "un bloc fencé dans une doc string \"\"\", et l'inverse : le contenu
+  n'exclut que le délimiteur qui a ouvert la doc string"
+    (is (= [:doc_string [:doc_content "  ```clojure\n  (+ 1 2)\n  ```\n  "]]
+           (get-in (gherkin "Feature: f\nScenario: s\nGiven a\n  \"\"\"\n  ```clojure\n  (+ 1 2)\n  ```\n  \"\"\"")
+                   [2 1 2 1 3])))
+    (is (ok? "Feature: f\nScenario: s\nGiven a\n  ```\n  du \"\"\" au milieu\n  ```")))
+
+  (testing "les deux délimiteurs d'une doc string doivent correspondre"
+    (is (ko? "Feature: f\nScenario: s\nGiven a\n  \"\"\"\n  txt\n  ```")))
+
   (testing "fins de ligne Windows"
     (is (ok? "Feature: f\r\nScenario: s\r\nGiven a\r\n")))
 

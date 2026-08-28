@@ -78,9 +78,9 @@
            scenario_sentence  = #'.*'
            step_sentence      = <indent> step_keywords sentence (<blanks> (tab_params | doc_string))?
            sentence           = #'.*'
-           doc_string         = <whitespace?> <doc_delim> <eol> doc_content <whitespace?> <doc_delim>
-           <doc_delim>        = '\"\"\"' | '```'
-           doc_content        = #'(?:[^\"`]+|\"(?!\"\")|`(?!``))*'
+           doc_string         = <whitespace?> (<'\"\"\"'> <eol> doc_content <whitespace?> <'\"\"\"'>
+                                            | <'```'> <eol> doc_content <whitespace?> <'```'>)
+           doc_content        = #'(?:[^\"]+|\"(?!\"\"))*' | #'(?:[^`]+|`(?!``))*'
            examples           = <indent> examples-keywords <#'[^\\r\\n]*'> <blanks> header row* (comment_line | <blank_line>)*
            <examples-keywords>= <" (kw-translations :examples) ">
            tab_params         = header row*
