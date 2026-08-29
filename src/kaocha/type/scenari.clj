@@ -98,30 +98,58 @@
                  ::annotations           annotations
                  ::description           description
                  ::pre-run               pre-run
-                 ::post-run              post-run})]
+                 ::post-run              post-run
+                 ::parallel?             (::parallel? testable)})]
     (assoc testable :kaocha.test-plan/tests tests)))
 
+(defn- run-testables-parallel
+  "Fan-out feature-level, une feature par thread. `pmap` conserve l'ordre des
+  resultats, comme `testable/run-testables` -- rien a changer cote agregation.
+
+  ponytail: `pmap` chunke par paquets de ncpus+2 ; si des features tres
+  inegales en duree desequilibrent la fin de suite, passer a un pool dedie."
+  [tests test-plan]
+  (vec (pmap #(testable/run-testable % test-plan) tests)))
+
 (defmethod testable/-run :kaocha.type/scenari [testable test-plan]
-  (let [results (testable/run-testables (:kaocha.test-plan/tests testable) test-plan)
+  (let [tests    (:kaocha.test-plan/tests testable)
+        results  (if (::parallel? testable)
+                   (run-testables-parallel tests test-plan)
+                   (testable/run-testables tests test-plan))
         testable (-> testable
                      (dissoc :kaocha.test-plan/tests)
                      (assoc :kaocha.result/tests results))]
     testable))
 
-(defmethod testable/-run :kaocha.type/scenari-feature [testable test-plan]
+(defn- run-feature*
+  "Corps de :kaocha.type/scenari-feature, sans souci de sortie -- appele
+  directement en sequentiel, ou sous binding de *out* en parallele."
+  [testable test-plan]
   (t/do-report {:type        :begin-feature
                 :feature     (:kaocha.testable/desc testable)
                 :annotations (::annotations testable)
                 :description (::description testable)})
   (sc/run-hooks
-    {:pre-run (::pre-run testable) :post-run (::post-run testable)}
-    (fn []
-      (let [results (testable/run-testables (:kaocha.test-plan/tests testable) test-plan)
-            testable (-> testable
-                         (dissoc :kaocha.test-plan/tests)
-                         (assoc :kaocha.result/tests results))]
-        (t/do-report {:type :end-feature})
-        testable))))
+   {:pre-run (::pre-run testable) :post-run (::post-run testable)}
+   (fn []
+     (let [results (testable/run-testables (:kaocha.test-plan/tests testable) test-plan)
+           testable (-> testable
+                        (dissoc :kaocha.test-plan/tests)
+                        (assoc :kaocha.result/tests results))]
+       (t/do-report {:type :end-feature})
+       testable))))
+
+(defmethod testable/-run :kaocha.type/scenari-feature [testable test-plan]
+  (if (::parallel? testable)
+    ;; en parallele, plusieurs features impriment en meme temps sur *out* :
+    ;; on capture la sortie de celle-ci et on l'ecrit d'un bloc a la fin,
+    ;; pour ne pas entrelacer ses lignes avec celles des autres.
+    (let [sw     (java.io.StringWriter.)
+          result (binding [*out* sw] (run-feature* testable test-plan))]
+      (print (str sw))
+      (flush)
+      result)
+    (run-feature* testable test-plan)))
 
 (defmethod testable/-run :kaocha.type/scenari-scenario [testable test-plan]
   (t/do-report {:type :begin-scenario :scenario testable})
