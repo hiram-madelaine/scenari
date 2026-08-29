@@ -127,7 +127,7 @@ Feature: tagged feature
                                     :scenarios [{:pre-run       [],
                                                  :post-run      [],
                                                  :default-state {:foo 1},
-                                                 :scenario-name " Scenario description",
+                                                 :scenario-name "Scenario description",
                                                  :steps         [{:sentence-keyword :then,
                                                                   :input-state      {:foo 1},
                                                                   :raw              "Then My initial state contains foo",

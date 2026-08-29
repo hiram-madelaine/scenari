@@ -1,6 +1,8 @@
 (ns scenari.v2.corpus-test
-  "Rejoue un corpus externe de .feature réels contre la grammaire, pour attraper
-  les régressions que les fixtures du repo ne couvrent pas.
+  "Rejoue un corpus externe de .feature réels, pour attraper les régressions que
+  les fixtures du repo ne couvrent pas. Le parsing est celui de
+  `io.cucumber/gherkin` : ce qui est en test ici, c'est la traduction en feature
+  map de constructions réelles.
 
       SCENARI_CORPUS=/chemin/vers/scenarios ./test.sh --focus :unit
 
@@ -14,7 +16,7 @@
   "Construit l'AST de chaque feature du répertoire et renvoie [[chemin motif] ...]
   pour celles qui lèvent. La glue du projet n'étant pas chargée ici, chaque step
   ressortirait en :missing-step — un événement que le reporter kaocha ne sait pas
-  traiter — d'où la neutralisation de do-report : seule la grammaire est en test."
+  traiter — d'où la neutralisation de do-report : seul le parsing est en test."
   [dir]
   (let [files (core/get-feature-files dir)]
     [(count files)
@@ -23,11 +25,8 @@
             (keep (fn [f]
                     (try (core/->feature-ast (slurp f) {} *ns*) nil
                          (catch Throwable e
-                           (let [{:keys [line column text]} (:failure (ex-data e))]
-                             [(.getPath f)
-                              (if line
-                                (str "ligne " line ", colonne " column " : " text)
-                                (first (string/split-lines (str (.getMessage e)))))])))))
+                           ;; le message de gherkin porte déjà sa ligne et sa colonne
+                           [(.getPath f) (first (string/split-lines (str (.getMessage e))))]))))
             (sort-by first)
             vec))]))
 

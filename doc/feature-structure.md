@@ -8,7 +8,7 @@ A feature is represented as a map with the following keys:
 
 ```clojure
 {:scenarios [...]       ; Vector of scenario maps
- :feature [...]         ; Optional narrative elements
+ :feature "..."         ; The Feature title
  :description "..."     ; Optional free text between the Feature line and the first keyword
  :annotations #{...}    ; Optional annotations (tags)
  :pre-run [...]         ; Hook functions to execute before feature
@@ -16,16 +16,11 @@ A feature is represented as a map with the following keys:
 }
 ```
 
-## Narrative/Feature Section
+## Narrative
 
-The `:feature` key contains details about the narrative section:
-
-```clojure
-{:feature ["Feature title" 
-           [:as_a "role"]
-           [:I_want_to "goal"]
-           [:so_that "benefit"]]}
-```
+A narrative (`As a … I want to … So that …`) has no structure of its own: per
+the gherkin spec it is free text under the Feature line, so it lands in
+`:description`.
 
 ## Annotations
 
@@ -86,6 +81,9 @@ Parameters extracted from steps come in three types:
 ;; Doc string parameters (multi-line text blocks)
 {:type :doc-string,
  :val "This is a multi-line\ntext block that can contain\nany content including markdown"}
+
+;; A doc string opened with a content type (```json) carries it
+{:type :doc-string, :val "{\"a\": 1}", :media-type "json"}
 ```
 
 ## Glue Metadata
@@ -103,7 +101,7 @@ The `:glue` key contains information about the matched implementation function:
 
 ## Example Execution Flow
 
-1. Feature is parsed from text using `gherkin-parser`
+1. Feature is parsed from text by `io.cucumber/gherkin`, into one *pickle* per runnable scenario
 2. Steps are matched to implementation functions via `find-glue-by-step-regex`
 3. During execution, each step receives the previous step's output state
 4. Parameters from the step text are extracted and passed to the implementation
@@ -113,33 +111,23 @@ The `:glue` key contains information about the matched implementation function:
 
 ## Common Transformations
 
-- From Gherkin text → AST via `gherkin-parser`
-- From AST → executable feature via `->feature-ast`
+- From Gherkin text → GherkinDocument + pickles, via `io.cucumber/gherkin`
+- From pickles → executable feature via `->feature-ast`
 - Feature execution via `run-feature`
 - Step execution via `run-step`
-
-## Examples Section
-
-For scenarios with examples tables, each row generates a separate execution context:
-
-```clojure
-{:scenario-name "Scenario with examples"
- :steps [...]
- :examples [{:header1 "value1", :header2 "value2"},
-            {:header1 "value3", :header2 "value4"}]}
-```
 
 This data structure provides a flexible representation that preserves all information from the original Gherkin text while supporting execution, reporting, and integration with test frameworks.
 
 ## Constructs resolved at parse time
 
 `Background`, `Rule` and `Scenario Outline` have no representation in this
-structure: a pre-pass on the parse tree normalizes them away before the feature
-map is built.
+structure. Gherkin's pickle compiler resolves them away: a pickle is one
+runnable scenario, and the feature map is a thin translation of it.
 
 - **Background** — its steps are spliced at the head of every scenario's `:steps`
   (the feature's background first, then the enclosing rule's, if any).
 - **Rule** — only groups scenarios, so its scenarios are lifted into the
-  feature's `:scenarios`. The rule name is not kept.
+  feature's `:scenarios`, inheriting its tags and its description. The rule name
+  is not kept.
 - **Scenario Outline** — becomes one scenario per `Examples` row, with the
   `<placeholders>` substituted throughout the scenario, its name included.

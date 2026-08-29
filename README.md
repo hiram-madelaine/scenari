@@ -324,14 +324,52 @@ Also, steps and scenarios association must be isolated within namespace to avoid
 The compatibility with clojure.test would also be with its various reports available (`:pass`, `:fail`, etc.) with reports specific to narrative, scenarios and steps. 
 Concerning assertion, steps could contains `clojure.test/is` assertions or throws exception that will be handled properly like clojure.test ones. 
 
-The gherkin grammar parser is written with the amazing [Instaparse](https://github.com/Engelberg/instaparse) library (I thumbs up for the ClojureScript port by the way!).
+Feature files are parsed by [`io.cucumber/gherkin`](https://github.com/cucumber/gherkin), the reference implementation, so scenari reads what Cucumber reads: the ~70 languages, `Rule`, tags on `Examples`, doc string content types. The *step sentence* — the half gherkin does not cover, the one that binds a sentence to Clojure code — is parsed with the amazing [Instaparse](https://github.com/Engelberg/instaparse) library.
 
 I did a presentation of the internals of the library at the Clojure Paris User Group and the slides are here: ["Anatomy of a BDD Execution Library in Clojure"](https://speakerdeck.com/jgrodziski/anatomy-of-a-bdd-execution-library-in-clojure).
 
 ## TODOS
 
-* stop-on-failure? as an option for execution
-* give another way to declare steps without macro (proper defn with `:scenari/regex` in meta)
+Gaps against Cucumber, roughly by value/effort.
+
+### Step expressions
+
+* [ ] more tokens: `{int}` `{float}` `{word}`, optional text `apple(s)`, alternation `hot/cold`. Only `{string}` and `{number}` (`\d+`, so no negative and no decimal) exist today
+* [ ] an unknown token is a `PatternSyntaxException` out of `sentence-with-tokens->regex`, not a missing step -- `{int}` currently crashes glue resolution
+* [ ] custom parameter types: a token that converts its capture into a domain value
+* [ ] a datatable API beyond a vector of string maps: lists, transpose, diff, row-to-entity conversion
+
+### Execution
+
+* [ ] `--dry-run`: glues are already resolved at parse time, so this is mostly a matter of reporting the resolution
+* [ ] an unresolved step should be `:undefined`, not the NPE `run-step` raises by calling `(apply nil ...)`
+* [ ] stop-on-failure? as an option for execution
+* [ ] rerun only the scenarios that failed, `--retry n` for flaky ones
+
+### Reporting
+
+* [ ] measure step and scenario durations -- nothing is timed today, which also blocks a slowest-steps report
+* [ ] cucumber-messages / JSON output, the interchange format the whole ecosystem reads (Allure, Cucumber Reports, CI). The parser already speaks it: a feature is read as `Envelope` messages, only the run needs to emit its own
+* [ ] usage report: which glues ran, which are dead
+* [ ] attachments (screenshots) from a step or a hook
+
+### Hooks
+
+* [ ] step-level hooks, and suite-level before-all / after-all
+* [ ] tag-conditional hooks (`@before "@web and not @slow"`)
+* [ ] pass the scenario -- name, tags, status -- to the hook, which currently receives nothing
+* [ ] hooks shared across features, instead of one options map per `deffeature`
+
+### Gherkin
+
+* [ ] a `Rule` level in the report and in the kaocha tree; rules are parsed but flattened into the feature
+
+### Glue code
+
+* [ ] give another way to declare steps without macro (proper defn with `:scenari/regex` in meta)
+
+Deliberately out of scope: parallel execution, dependency injection (the chained
+scenario state replaces it), IDE integration.
 
 ## License
 

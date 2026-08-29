@@ -45,8 +45,9 @@
     (is (= 1 (count (:scenarios (v2/->feature-ast "Feature: f\nScenario: s\nGiven a" {} *ns*))))
         "a valid feature is unaffected"))
 
-  (t/testing "a feature whose keywords are all unrecognized is swallowed as description, not silently empty"
-    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"no scenario"
+  (t/testing "a feature whose keywords are all unrecognized is a parse error, where
+  the old grammar swallowed it as free description and blamed the missing scenario"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Cannot parse feature"
                           (v2/->feature-ast "Fonctionnalite: f\nScenario ! s\nSoit a" {} *ns*)))))
 
 (t/deftest table-cell-escapes-test
@@ -73,7 +74,7 @@
                                       "| 5 | 5 | 10  |")
                                  {} *ns*))]
       (is (= 2 (count scenarios)))
-      (is (= [" adding 1 and 2" " adding 5 and 5"] (map :scenario-name scenarios))
+      (is (= ["adding 1 and 2" "adding 5 and 5"] (map :scenario-name scenarios))
           "the scenario name is substituted too")
       (is (= [["a number 1" "I add 2" "I get 3"]
               ["a number 5" "I add 5" "I get 10"]]
@@ -93,11 +94,12 @@
                                       "Examples: edge cases\n"
                                       "| x |\n| 9 |\n")
                                  {} *ns*))]
-      (is (= [" s 1" " s 2" " s 9"] (map :scenario-name scenarios))))))
+      (is (= ["s 1" "s 2" "s 9"] (map :scenario-name scenarios))))))
 
 (t/deftest examples-substitution-test
-  (t/testing "placeholders are substituted in one pass: a value that looks like
-  a placeholder must not be substituted again"
+  (t/testing "les placeholders sont substitues colonne par colonne, en sequence :
+  une valeur qui ressemble elle-meme a un placeholder est resubstituee par la
+  colonne suivante. C'est le comportement de l'implementation de reference."
     (let [scenarios (:scenarios (v2/->feature-ast
                                  (str "Feature: f\n"
                                       "Scenario Outline: s\n"
@@ -106,7 +108,7 @@
                                       "| a | b |\n"
                                       "| <b> | 42 |\n")
                                  {} *ns*))]
-      (is (= ["<b> then 42"] (map #(:sentence (first (:steps %))) scenarios)))))
+      (is (= ["42 then 42"] (map #(:sentence (first (:steps %))) scenarios)))))
 
   (t/testing "an Examples table with a header but no row names the scenario,
   instead of making it vanish and letting the feature-level guard blame keyword
@@ -174,8 +176,8 @@
                                       "  Example: e2\n"
                                       "  When y\n")
                                  {} *ns*))]
-      (is (= [[" e1" ["feature setup" "rule setup" "x"]]
-              [" e2" ["feature setup" "y"]]]
+      (is (= [["e1" ["feature setup" "rule setup" "x"]]
+              ["e2" ["feature setup" "y"]]]
              (map (juxt :scenario-name #(map :sentence (:steps %))) scenarios))
           "the feature background comes first, then the rule's own"))))
 
@@ -203,13 +205,15 @@
                                  {} *ns*))]
       (is (= ["sa narration"] (map :description scenarios)))))
 
-  (t/testing "a Rule description follows its scenarios through outline expansion"
+  (t/testing "a Rule description follows its scenarios through outline expansion.
+  Placeholders are not substituted there: per the spec they are replaced in the
+  steps, their arguments and the scenario name, not in free description text."
     (let [scenarios (:scenarios (v2/->feature-ast
                                  (str "Feature: f\nRule: r\n  cas <x>\n"
                                       "  Scenario Outline: s\n  When y\n"
                                       "  Examples:\n  | x |\n  | 1 |\n  | 2 |\n")
                                  {} *ns*))]
-      (is (= ["cas 1" "cas 2"] (map :description scenarios))))))
+      (is (= ["cas <x>" "cas <x>"] (map :description scenarios))))))
 
 (defn- surviving-scenarios
   "[feature scenario] pairs left after kaocha's filter marked the rest ::skip."
@@ -232,9 +236,9 @@
       (is (< 1 (count (surviving-scenarios suite)))))
 
     (t/testing "--focus-meta on a gherkin tag of a scenario keeps that scenario alone"
-      (is (= [["tagged feature" " tagged scenario"]] (focus-meta suite :scenario-annotated))))
+      (is (= [["tagged feature" "tagged scenario"]] (focus-meta suite :scenario-annotated))))
 
     (t/testing "--focus-meta on a gherkin tag of a feature, or on deffeature var meta,
     keeps the whole feature"
-      (is (= [["tagged feature" " tagged scenario"]] (focus-meta suite :annotated)))
-      (is (= [["tagged feature" " tagged scenario"]] (focus-meta suite :var-tagged))))))
+      (is (= [["tagged feature" "tagged scenario"]] (focus-meta suite :annotated)))
+      (is (= [["tagged feature" "tagged scenario"]] (focus-meta suite :var-tagged))))))

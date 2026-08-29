@@ -2,41 +2,45 @@
   (:require [clojure.test :as t]
             [clojure.java.io :as io]
             [clojure.string :as string]
-            [clojure.walk :as walk]
-            [instaparse.core :as insta]
             [instaparse.transform :as insta-trans]
             [scenari.v2.parser :as parser]
             [scenari.v2.glue :as glue])
-  (:import (java.io File)
-           (org.apache.commons.io FileUtils)
-           (java.util UUID)))
-
+  (:import (io.cucumber.gherkin GherkinParser)
+           (io.cucumber.messages.types Envelope Source SourceMediaType StepKeywordType)
+           (java.io File)
+           (java.util Optional UUID)
+           (org.apache.commons.io FileUtils)))
 
 ;; ------------------------
 ;;          LOAD
 ;; ------------------------
 
-(defn cell
-  "A table cell, trimmed and unescaped: gherkin escapes \\| \\\\ and \\n inside cells."
-  [s]
-  (string/replace (string/trim s) #"\\(.)"
-                  (fn [[_ c]] (case c "n" "\n" c))))
+(defn- opt
+  "Java Optional -> value or nil. The gherkin message types return one for every
+  field the format declares optional, which is most of them."
+  [^Optional o]
+  (.orElse o nil))
 
-(defn tab-params->params [[param-type [_ & headers] & rows]]
-  (when (= :tab_params param-type)
-    (let [param-names (map (comp keyword cell) headers)
-          params-values (map (comp #(map cell %) rest) rows)]
-      ;; array-map, not hash-map: it keeps the column order of the feature file
-      ;; whatever the width, which the report relies on to print the table back
-      [{:type :table :val (mapv #(apply array-map (interleave param-names %)) params-values)}])))
-
-(defn doc-string->params [[param-type [_ content]]]
-  (when (= :doc_string param-type)
-    [{:type :doc-string :val (string/trim content)}]))
+(defn argument->params
+  "The block argument of a pickle step - datatable or docstring - as a param
+  vector. Cells arrive trimmed and unescaped from the parser."
+  [arg]
+  (when arg
+    (if-let [table (opt (.getDataTable arg))]
+      (let [cells   (fn [row] (map #(.getValue %) (.getCells row)))
+            rows    (.getRows table)
+            headers (map (comp keyword string/trim) (cells (first rows)))]
+        ;; array-map, not hash-map: it keeps the column order of the feature file
+        ;; whatever the width, which the report relies on to print the table back
+        [{:type :table :val (mapv #(apply array-map (interleave headers (cells %))) (rest rows))}])
+      (when-let [doc (opt (.getDocString arg))]
+        [(cond-> {:type :doc-string :val (.getContent doc)}
+           ;; ```json marks the content type, and a step may want to know
+           (opt (.getMediaType doc)) (assoc :media-type (opt (.getMediaType doc))))]))))
 
 (defn sentence-params->params [[type val]] {:type :value :val (condp = type
-                                                                    :number (read-string val)
-                                                                    :string (str val))})
+                                                                :number (read-string val)
+                                                                :string (str val))})
 
 (defn file-from-fs-or-classpath [x]
   (let [r (io/resource x)
@@ -47,10 +51,10 @@
 (defn get-feature-files [basedir]
   (letfn [(find-spec-files [basedir]
             (FileUtils/listFiles
-              basedir
-              (into-array ["story" "feature"])
-              true                                          ;;recursive
-              ))]
+             basedir
+             (into-array ["story" "feature"])
+             true                                          ;;recursive
+             ))]
     (case (str (type basedir))
       "class java.lang.String" (if (.exists (File. ^String basedir))
                                  (find-spec-files (File. ^String basedir))
@@ -59,24 +63,24 @@
 
 (defn find-sentence-params [sentence]
   (insta-trans/transform
-    {:SENTENCE (fn [& s] (->> s
-                              (filter (fn [[type _]] (#{:string :number} type)))
-                              (mapv sentence-params->params)))}
-    (parser/sentence sentence)))
+   {:SENTENCE (fn [& s] (->> s
+                             (filter (fn [[type _]] (#{:string :number} type)))
+                             (mapv sentence-params->params)))}
+   (parser/sentence sentence)))
 
 (defmulti read-source
-          (fn [path]
-            (letfn [(file-or-dir [x]
-                      (cond (.isFile x) :file
-                            (.isDirectory x) :dir))]
-              (if (instance? String path)
-                (if-let [f (file-from-fs-or-classpath path)]
-                  (file-or-dir f)
-                  :feature-as-str)
-                (if (instance? File path)
-                  (file-or-dir path)
-                  (throw (RuntimeException. (str "type " (type path) "for spec not accepted (only string or file)")))))))
-          :default :file)
+  (fn [path]
+    (letfn [(file-or-dir [x]
+              (cond (.isFile x) :file
+                    (.isDirectory x) :dir))]
+      (if (instance? String path)
+        (if-let [f (file-from-fs-or-classpath path)]
+          (file-or-dir f)
+          :feature-as-str)
+        (if (instance? File path)
+          (file-or-dir path)
+          (throw (RuntimeException. (str "type " (type path) "for spec not accepted (only string or file)")))))))
+  :default :file)
 
 (defmethod read-source
   :dir
@@ -91,144 +95,126 @@
 
 (defmethod read-source :feature-as-str [source] source)
 
-(defn step->map [[_step-sentence [step-key] [_sentence sentence] data-param]]
-  (merge {:sentence-keyword step-key
-          :sentence         sentence
-          :raw              (str (string/capitalize (name step-key)) " " sentence)}
-         (when-let [params (into (find-sentence-params sentence)
-                                 (or (tab-params->params data-param)
-                                     (doc-string->params data-param)))]
-           {:params params})))
+;; ------------------------
+;;    GHERKIN -> FEATURE
+;; ------------------------
 
-(defn- node? [tag x] (and (vector? x) (= tag (first x))))
+(def ^:private gherkin-parser
+  (-> (GherkinParser/builder) (.includeSource false) (.build)))
 
-(defn- child [tag node] (some #(when (node? tag %) %) (rest node)))
+(defn- envelopes
+  "Parse `source` with the official gherkin parser. It yields a GherkinDocument -
+  the syntax tree - followed by one *pickle* per runnable scenario: Background
+  splicing, Rule flattening, tag inheritance and Scenario Outline expansion are
+  all done there, so nothing downstream has to know those constructs exist."
+  [source]
+  (let [stream (.parse gherkin-parser
+                       (Envelope/of (Source. "feature" source SourceMediaType/TEXT_X_CUCUMBER_GHERKIN_PLAIN)))
+        envs   (doall (iterator-seq (.iterator stream)))]
+    (when-let [err (some #(opt (.getParseError %)) envs)]
+      (throw (ex-info (str "Cannot parse feature:\n" (.getMessage err))
+                      {:source source :failure err})))
+    envs))
 
-(defn- expand-scenario
-  "Scenario outline: a scenario carrying Examples tables becomes one scenario per
-  row of every table -- gherkin allows several blocks, typically to label the
-  nominal rows apart from the edge cases -- with the <placeholders> substituted
-  everywhere inside it. Runs on the parse tree, before the transform resolves
-  glues on the substituted sentences."
-  [scenario]
-  (if-let [examples (seq (filter #(node? :examples %) (rest scenario)))]
-    (let [base (into [:scenario] (remove #(node? :examples %)) (rest scenario))]
-      ;; sans cette garde le scenario disparait de la feature, et c'est le
-      ;; garde-fou "Feature has no scenario" qui parle, en accusant la
-      ;; reconnaissance des mots-cles
-      (when (some #(empty? (nnext %)) examples)
-        (throw (ex-info (str "Examples table has no row, scenario"
-                             (second (child :scenario_sentence scenario))
-                             " would expand to nothing")
-                        {:scenario scenario})))
-      (for [[_ [_ & headers] & rows] examples
-            [_ & values] rows
-            :let [params (zipmap (map #(str "<" (cell %) ">") headers)
-                                 (map cell values))]]
-        ;; une seule passe : reduce-kv re-substituait dans le texte deja
-        ;; substitue, dans l'ordre de la hash-map
-        (walk/postwalk #(if (string? %)
-                          (string/replace % #"<[^>]*>" (fn [m] (get params m m)))
-                          %)
-                       base)))
-    [scenario]))
+(def ^:private keyword-types
+  "A pickle resolves And/But against the step above it, which is what a glue
+  needs; the report prints what the author wrote, so keep the conjunction."
+  {StepKeywordType/CONTEXT :given
+   StepKeywordType/ACTION  :when
+   StepKeywordType/OUTCOME :then})
 
-(defn- with-background
-  "Background steps run before each scenario: splice them at the head of the
-  scenario's own steps, so nothing downstream needs to know about backgrounds."
-  [bg-steps scenario]
-  (mapv (fn [node]
-          (if (node? :steps node)
-            (into [:steps] (concat bg-steps (rest node)))
-            node))
-        scenario))
+(defn- dedent
+  "Descriptions keep their indentation in the syntax tree, and every consumer
+  adds its own."
+  [s]
+  (when-not (string/blank? s)
+    (->> (string/split-lines s) (map string/trim) (remove string/blank?) (string/join "\n"))))
 
-(defn- with-description
-  "A Rule's description is context for every scenario it groups, and there is no
-  Rule level in the feature map to hang it on either: prepend it to the
-  scenario's own description, the way with-background prepends its steps."
-  [rule-desc scenario]
-  (if (empty? rule-desc)
-    scenario
-    (let [lines (concat rule-desc (rest (child :description scenario)))]
-      (into [] (comp (remove #(node? :description %))
-                     (mapcat #(if (node? :steps %) [(into [:description] lines) %] [%])))
-            scenario))))
+(defn- step-nodes [steps]
+  (into {} (map (fn [s] [(.getId s) {:sentence-keyword (keyword-types (opt (.getKeywordType s)) :and)}])) steps))
 
-(defn- with-annotations
-  "Per the gherkin spec a Rule's tags are inherited by the scenarios it groups,
-  and --focus-meta reads a scenario's tags off the scenario itself: merge them
-  into its own annotations, the way with-description does for the description."
-  [rule-tags scenario]
-  (if (empty? rule-tags)
-    scenario
-    (into [:scenario (into [:annotations] (concat rule-tags (rest (child :annotations scenario))))]
-          (remove #(node? :annotations %))
-          (rest scenario))))
+(defn- ast-nodes
+  "astNodeId -> what a pickle drops on its way out of the compiler: a step's own
+  keyword, and a scenario's description prefixed by its Rule's, which is context
+  for every scenario the rule groups."
+  [children rule-description]
+  (into {}
+        (mapcat (fn [child]
+                  (concat
+                   (some-> (opt (.getBackground child)) .getSteps step-nodes)
+                   (when-let [sc (opt (.getScenario child))]
+                     (cons [(.getId sc) {:description (some->> [rule-description (dedent (.getDescription sc))]
+                                                               (remove nil?) (seq) (string/join "\n"))}]
+                           (step-nodes (.getSteps sc)))))))
+        children))
 
-(defn- rule-scenarios
-  "A Rule only groups scenarios and may carry a Background, a description and
-  tags of its own; scenari has no hierarchy level for it, so its scenarios are
-  lifted into the feature, carrying all three."
-  [rule]
-  (let [bg-steps  (rest (child :steps (child :background rule)))
-        rule-desc (rest (child :description rule))
-        rule-tags (rest (child :annotations rule))]
-    (map #(->> % (with-annotations rule-tags) (with-description rule-desc) (with-background bg-steps))
-         (rest (child :scenarios rule)))))
+(defn- feature-nodes [feature]
+  (let [children (.getChildren feature)]
+    (into (ast-nodes children nil)
+          (mapcat (fn [child]
+                    (when-let [rule (opt (.getRule child))]
+                      (ast-nodes (.getChildren rule) (dedent (.getDescription rule))))))
+          children)))
 
-(defn- normalize-scenarios
-  "Pre-pass on the parse tree: lift the Rules, splice in the Background and
-  expand the scenario outlines, so the transform below only ever sees plain
-  scenarios."
-  [spec]
-  (let [bg-steps (rest (child :steps (child :background spec)))
-        scenarios (concat (rest (child :scenarios spec))
-                          (mapcat rule-scenarios (rest (child :rules spec))))]
-    (into [] (comp (remove #(or (node? :background %) (node? :rules %)))
-                   (map (fn [node]
-                          (if (node? :scenarios node)
-                            (into [:scenarios]
-                                  (comp (map #(with-background bg-steps %))
-                                        (mapcat expand-scenario))
-                                  scenarios)
-                            node))))
-          spec)))
+(defn- check-empty-examples!
+  "An Examples table with a header but no row expands to nothing, and the
+  scenario simply vanishes from the pickles - the feature-level guard below then
+  blames keyword recognition for it."
+  [feature source]
+  (doseq [child (.getChildren feature)
+          :let [scenarios (keep #(opt (.getScenario %))
+                                (concat [child] (some-> (opt (.getRule child)) .getChildren)))]
+          sc scenarios
+          ex (.getExamples sc)]
+    (when (empty? (.getTableBody ex))
+      (throw (ex-info (str "Examples table has no row, scenario " (.getName sc)
+                           " would expand to nothing")
+                      {:source source :scenario (.getName sc)})))))
+
+(defn- tag-names [tags] (into #{} (map #(subs (.getName %) 1)) tags))
+
+(defn pickle-step->map [ast order step]
+  (let [sentence (.getText step)
+        kw       (:sentence-keyword (some ast (.getAstNodeIds step)) :and)]
+    {:sentence-keyword kw
+     :sentence         sentence
+     :raw              (str (string/capitalize (name kw)) " " sentence)
+     :order            order
+     :params           (into (find-sentence-params sentence)
+                             (argument->params (opt (.getArgument step))))}))
 
 (defn ->feature-ast [source {:keys [pre-run post-run pre-scenario-run post-scenario-run default-scenario-state] :as _options} ns-feature]
-  (let [ast (parser/gherkin source)
-        _ (when (insta/failure? ast)
-            (throw (ex-info (str "Cannot parse feature:\n" (print-str ast))
-                            {:source source :failure ast})))
-        ast (normalize-scenarios ast)
-        feature (insta-trans/transform
-                 {:SPEC              (fn [& s] (apply merge s))
-                  :annotation        (fn [s] s)
-                  :annotations       (fn [& s] {:annotations (set s)})
-                  :narrative         (fn [& n] {:feature (string/join " " n)})
-                  :description       (fn [& lines] {:description (string/join "\n" lines)})
-                  :steps             (fn [& contents]
-                                       {:steps (vec (map-indexed (fn [i content]
-                                                                   (let [step (step->map content)]
-                                                                     (-> step
-                                                                         (assoc :order i)
-                                                                         (assoc :glue (glue/find-glue-by-step-regex step ns-feature)))))
-                                                                 contents))})
-                  :scenario_sentence (fn [a] {:scenario-name a})
-                  :scenario          (fn [& contents] (into {:id            (.toString (UUID/randomUUID))
-                                                             :pre-run       (map #(assoc (meta %) :ref %) pre-scenario-run)
-                                                             :post-run      (map #(assoc (meta %) :ref %) post-scenario-run)
-                                                             :default-state (or default-scenario-state {})}
-                                                            contents))
-                  :scenarios         (fn [& contents] {:scenarios (into [] contents)
-                                                       :pre-run   (map #(assoc (meta %) :ref %) pre-run)
-                                                       :post-run  (map #(assoc (meta %) :ref %) post-run)})}
-                 ast)]
-    (when (empty? (:scenarios feature))
+  (let [envs    (envelopes source)
+        doc     (some #(opt (.getGherkinDocument %)) envs)
+        feature (some-> doc .getFeature opt)
+        _       (when feature (check-empty-examples! feature source))
+        ast     (if feature (feature-nodes feature) {})
+        ->hooks (fn [fns] (map #(assoc (meta %) :ref %) fns))
+        scenarios
+        (for [pickle (keep #(opt (.getPickle %)) envs)]
+          (cond-> {:id            (.toString (UUID/randomUUID))
+                   :scenario-name (.getName pickle)
+                   :annotations   (tag-names (.getTags pickle))
+                   :pre-run       (->hooks pre-scenario-run)
+                   :post-run      (->hooks post-scenario-run)
+                   :default-state (or default-scenario-state {})
+                   :steps         (vec (map-indexed
+                                        (fn [i step]
+                                          (let [s (pickle-step->map ast i step)]
+                                            (assoc s :glue (glue/find-glue-by-step-regex s ns-feature))))
+                                        (.getSteps pickle)))}
+            (:description (some ast (.getAstNodeIds pickle)))
+            (assoc :description (:description (some ast (.getAstNodeIds pickle))))))]
+    (when (empty? scenarios)
       (throw (ex-info (str "Feature has no scenario. Lines whose keyword is not recognized "
-                           "are parsed as free description:\n" (:description feature))
-                      {:source source :feature feature})))
-    feature))
+                           "are parsed as free description:\n" (some-> feature .getDescription))
+                      {:source source})))
+    (cond-> {:scenarios (vec scenarios)
+             :pre-run   (->hooks pre-run)
+             :post-run  (->hooks post-run)}
+      feature (assoc :feature (.getName feature))
+      (some-> feature .getTags seq) (assoc :annotations (tag-names (.getTags feature)))
+      (some-> feature .getDescription dedent) (assoc :description (dedent (.getDescription feature))))))
 
 ;; ------------------------
 ;;          RUN
@@ -295,7 +281,6 @@
   ([] (apply run-features (filter #(some? (:scenari/feature-ast (meta %))) (vals (ns-interns *ns*)))))
   ([& features] (mapv run-feature features)))
 
-
 ;; ------------------------
 ;;          DEFINE
 ;; ------------------------
@@ -311,7 +296,6 @@
                               :scenari/raw-feature source#
                               :scenari/feature-ast feature-ast#
                               :scenari/feature-test true) [] (scenari.v2.test/run-features (var ~name#))))))
-
 
 (defn re->symbol [re]
   (-> (str re)
