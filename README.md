@@ -353,6 +353,7 @@ Gaps against Cucumber, roughly by value/effort.
 * [ ] an unresolved step should be `:undefined`, not the NPE `run-step` raises by calling `(apply nil ...)`
 * [ ] stop-on-failure? as an option for execution
 * [ ] rerun only the scenarios that failed, `--retry n` for flaky ones
+* [x] `:kaocha.type.scenari/parallel?`: run features (not scenarios, not steps) concurrently, one thread per feature -- each feature already carries its own independent AST and hooks, so nothing shared needs to change. Off by default. Not compatible with `--fail-fast` (already-started features cannot be cancelled). Output is buffered per feature and flushed as one block, so concurrent features never interleave their lines. Hooks and glue code that touch a shared external resource (a database, a Solr collection...) must be made safe for concurrent use before turning this on -- the library does not isolate them for you
 
 ### Reporting
 
@@ -376,8 +377,8 @@ Gaps against Cucumber, roughly by value/effort.
 
 * [ ] give another way to declare steps without macro (proper defn with `:scenari/regex` in meta)
 
-Deliberately out of scope: parallel execution, dependency injection (the chained
-scenario state replaces it), IDE integration.
+Deliberately out of scope: dependency injection (the chained scenario state
+replaces it), IDE integration.
 
 ## License
 
