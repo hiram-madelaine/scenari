@@ -1,39 +1,31 @@
 (ns scenari.v2.step
   (:require [clojure.string :as string]
-            [instaparse.core :as insta]
-            [scenari.v2.parser :as parser]))
+            [scenari.v2.glue :as glue])
+  (:import (io.cucumber.cucumberexpressions CucumberExpressionGenerator)))
 
-(defn- extract-params-as-args [params]
-  (str "[state " (string/join " " (map-indexed (fn [idx _] (str "arg" idx)) params)) "]"))
+(def ^:private generator
+  "Le générateur de cucumber, sur le même registre de types que le matching :
+  ce qu'il propose est exactement ce que `find-glue-by-step-regex` saura relire."
+  (delay (CucumberExpressionGenerator. @glue/parameter-type-registry)))
+
+(defn- as-clojure-string
+  "L'expression va dans un littéral chaîne à coller : ses échappements - le
+  générateur pose `\\/` devant une barre oblique littérale - doivent survivre au
+  lecteur Clojure."
+  [s]
+  (string/escape s {\\ "\\\\" \" "\\\""}))
 
 (defn generate-step-fn
   "return a string representing a spexec macro call corresponding to the sentence step"
-  [step-sentence]
-  (let [{:keys [raw params]} step-sentence
-        sentence-ast (parser/step raw)
-        ;; ex-info veut une String : passer le :reason d'instaparse, qui est un
-        ;; vecteur, faisait remonter une ClassCastException a la place du step manquant
-        _ (when (insta/failure? sentence-ast)
-            (throw (ex-info (str "Cannot parse the step sentence: " raw)
-                            {:parsed-text step-sentence
-                             :failure     (insta/get-failure sentence-ast)})))
-        [_ [step-type] & sentence-elements] sentence-ast]
-    (str (case step-type
-           :given "(defgiven \""
-           :and   "(defand \""
-           :when  "(defwhen \""
-           :then  "(defthen \""
-           "(defwhen \"")
-         (apply str (map (fn [[what? data]]
-                           (case what?
-                             :words data
-                             :string "{string}"
-                             :number "{number}"
-                             "test")) sentence-elements))
-         "\"  "
-         (extract-params-as-args params)
-         (case step-type
-           :given "  (do \"setup or assert correct tested component state\"))"
-           :when  "  (do \"something\"))"
-           :then  "  (do \"assert the result of when step\"))"
-           "  (do \"something\"))"))))
+  [{:keys [sentence sentence-keyword params]}]
+  (let [expression (first (.generateExpressions @generator sentence))
+        ;; un paramètre par token de la phrase, plus le bloc - datatable ou
+        ;; docstring - que le step porte déjà
+        arity      (+ (count (.getParameterNames expression)) (count params))]
+    (str "(def" (name (or sentence-keyword :when))
+         " \"" (as-clojure-string (.getSource expression)) "\"  "
+         "[state " (string/join " " (map #(str "arg" %) (range arity))) "]  "
+         (case sentence-keyword
+           :given "(do \"setup or assert correct tested component state\"))"
+           :then  "(do \"assert the result of when step\"))"
+           "(do \"something\"))"))))

@@ -56,7 +56,7 @@ Each step within a scenario is represented as a map:
  :raw "Given Step text"                     ; Full text with keyword
  :order 0                                   ; Position in scenario
  :glue {...}                                ; Matched step definition
- :params [...]                              ; Extracted parameters
+ :params [...]                              ; The glue's captures, then the datatable/docstring block
  :status :success/:fail/:pending            ; Execution status
  :input-state {}                            ; State before execution
  :output-state {}                           ; State after execution

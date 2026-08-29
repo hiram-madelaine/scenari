@@ -12,18 +12,23 @@
   glue. Une fn Clojure ne déclare rien, la conversion reste celle du token."
   (into-array Type []))
 
+(def parameter-type-registry
+  "Les types de token connus des expressions. `{number}` n'en fait pas partie -
+  il est défini ici pour les glues déjà écrits, et gagne au passage le signe et
+  les décimales. `useForSnippets` false : un squelette généré propose les types
+  de cucumber, `{int}` et `{double}`, plutôt que de propager le nôtre."
+  (delay
+    (doto (ParameterTypeRegistry. Locale/ENGLISH)
+      (.defineParameterType (ParameterType. "number" "-?\\d+(?:\\.\\d+)?" Object
+                                            (reify Transformer (transform [_ s] (read-string s)))
+                                            false false)))))
+
 (def ^:private expression-factory
   "Les *cucumber expressions*, la moitié que gherkin ne couvre pas : `{int}`
   `{float}` `{word}` `{string}`, le texte optionnel `apple(s)` et l'alternance
-  `hot/cold`. `{number}` n'en fait pas partie - il est redéfini ici pour les
-  glues déjà écrits, et gagne au passage le signe et les décimales. Une phrase
-  encadrée de `^...$` ou de `/.../` reste lue comme une regex, comme avant."
-  (delay
-    (let [registry (ParameterTypeRegistry. Locale/ENGLISH)]
-      (.defineParameterType registry
-                            (ParameterType. "number" "-?\\d+(?:\\.\\d+)?" Object
-                                            (reify Transformer (transform [_ s] (read-string s)))))
-      (ExpressionFactory. registry))))
+  `hot/cold`. Une phrase encadrée de `^...$` ou de `/.../` reste lue comme une
+  regex, comme avant."
+  (delay (ExpressionFactory. @parameter-type-registry)))
 
 (defn step->expression
   "La phrase d'un glue, compilée. Lève sur un token inconnu - `{produit}` sans
@@ -88,6 +93,18 @@
                                           (apply max-key key))]
     closest-glues-by-ns))
 
+(defn- match
+  "Les arguments capturés par le glue sur cette phrase, nil s'il ne matche pas.
+  Une liste vide est un match sans paramètre - à ne pas confondre avec nil."
+  [glue sentence]
+  (.orElse (.match (or (:expression glue) (step->expression glue)) sentence no-types) nil))
+
+(defn step-args
+  "Les valeurs que la phrase donne au glue, converties par leur token : {int}
+  rend un entier, {string} la chaîne sans ses guillemets."
+  [glue sentence]
+  (mapv #(.getValue %) (match glue sentence)))
+
 (defn find-glue-by-step-regex
   "Return the tuple of fn/regex as a vector that match the step-sentence"
   ([step ns-feature] (find-glue-by-step-regex step ns-feature (all-glues)))
@@ -95,9 +112,7 @@
    (let [{:keys [sentence]} step
          ;; `:expression` est précompilée par `all-glues` ; le repli couvre un
          ;; glue construit à la main et passé directement à cette arité.
-         matched-glues (filter #(.isPresent (.match (or (:expression %) (step->expression %))
-                                                    sentence no-types))
-                               glues)]
+         matched-glues (filter #(some? (match % sentence)) glues)]
      (cond
        (empty? matched-glues)
        (do (t/do-report {:type :missing-step, :step-sentence step})

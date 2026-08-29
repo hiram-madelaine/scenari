@@ -29,9 +29,10 @@
          (map #(utils/color-str :grey (str indent %)))
          (string/join "\n"))))
 
-;; ponytail: display-only heuristic, mirroring the `string` and `number`
-;; productions of parser/sentence. Walk (parser/sentence sentence) instead if the
-;; two ever drift.
+;; ponytail: display-only heuristic. Les captures réelles sont dans (:params
+;; step) - les prendre de là si l'affichage et le glue divergent. Les guillemets
+;; simples, que {string} accepte aussi, sont volontairement hors du lot : une
+;; phrase française est pleine d'apostrophes.
 (def ^:private param-re #"\"[^\"]*\"|\b\d+\b")
 
 (defn- highlight-params

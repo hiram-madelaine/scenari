@@ -8,13 +8,6 @@
             [kaocha.repl :as krepl]
             [testit.core :refer :all]))
 
-(t/deftest find-sentence-params-test
-  (t/testing "finding parameters in sentence"
-    (is (= (v2/find-sentence-params "Given an id 1234") [{:type :value, :val 1234}]) "should return number value")
-    (is (= (v2/find-sentence-params "Given an id \"1234\"") [{:type :value, :val "1234"}]) "should return string value")
-    (is (= (v2/find-sentence-params "Given an id abc") []) "should return no parameters")
-    (is (= (v2/find-sentence-params "Given an id 1234 and \"1234\" ") [{:type :value, :val 1234} {:type :value, :val "1234"}]) "should return multiple value")))
-
 (v2/defgiven #"My duplicated step in other ns and feature ns" [state]
   state)
 
@@ -60,6 +53,8 @@
                :scenarios first :steps first :params first :val))
         "\\| stays in its cell instead of splitting it, \\n becomes a newline")))
 
+(v2/defgiven "a number {int}" [state n] n)
+
 (t/deftest scenario-outline-test
   (t/testing "a scenario outline yields one scenario per Examples row, placeholders substituted"
     (let [scenarios (:scenarios (v2/->feature-ast
@@ -79,9 +74,10 @@
       (is (= [["a number 1" "I add 2" "I get 3"]
               ["a number 5" "I add 5" "I get 10"]]
              (map #(map :sentence (:steps %)) scenarios)))
-      (is (= [[{:type :value :val 1}] [{:type :value :val 2}] [{:type :value :val 3}]]
+      (is (= [[{:type :value :val 1}] [] []]
              (map :params (:steps (first scenarios))))
-          "substituted values are parsed as step params, so glues receive them"))))
+          "la valeur substituée arrive au glue, convertie par son token ; les deux
+          autres steps n'ont pas de glue, donc pas de paramètre"))))
 
 (t/deftest several-examples-blocks-test
   (t/testing "every Examples block of an outline is expanded, not just the first"

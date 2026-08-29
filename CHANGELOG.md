@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file. This change
 
 ## Changed ##
 
+A step's arguments are the captures of its cucumber expression, converted by
+their token: `{int}` gives a number, `{string}` the text without its quotes.
+Nothing reads the sentence's literals any more — `find-sentence-params`, the
+`sentence` and `step` instaparse grammars and `scenari.v2.parser` are gone, and
+with them the instaparse dependency. Skeletons for a missing step come from
+cucumber's `CucumberExpressionGenerator`, which also escapes what would read as
+expression syntax.
+
+Gained: an argument list that follows the matcher instead of the sentence
+(`{float}` and `{word}` are usable, `12.5` is one argument and not two), single
+quoted `'strings'`, and a sentence the old grammar could not split - `a < b`,
+`{a: 1}` - no longer raises.
+
+Breaking:
+
+- A step whose sentence matches no glue has no value params, only its datatable
+  or doc string. Nothing ran for such a step before either.
+- Generated skeletons suggest cucumber's types, `{int}` and `{double}`, where
+  they used to suggest `{number}`. Both still match.
+- `{string}` also matches a single-quoted `'value'`. Replayed on a corpus of 221
+  real feature files: 5 sentences out of 1123 gained an argument that way, none
+  lost one.
+
 Step sentences are matched with `io.cucumber/cucumber-expressions`, the
 reference implementation, instead of the two hand-rolled token substitutions.
 

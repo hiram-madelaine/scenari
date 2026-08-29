@@ -171,10 +171,16 @@ Step definitions (also called "glue code") connect the Gherkin steps with actual
 
 Scenari supports various parameter types in step definitions:
 
-- `{string}`: Matches a quoted string and passes it as a String
-- `{number}`: Matches a number and passes it as a Number
+A sentence matcher is a [cucumber expression](https://github.com/cucumber/cucumber-expressions), so its tokens are cucumber's own:
+
+- `{string}`: a quoted string — single or double quotes — passed without its quotes
+- `{int}`, `{float}`, `{word}`, and the other built-in types
+- `{number}`: scenari's own, kept for the glues written before the others existed; it accepts a sign and decimals
+- optional text `apple(s)` and alternation `hot/cold`; a literal `(` or `/` must be escaped (`\/`)
 - Table data: Automatically passed as a vector of maps
 - Doc strings: Automatically passed as a multi-line string
+
+A sentence wrapped in `^...$` or `/.../` is read as a plain regex instead, and its capture groups become the arguments.
 
 ### Working with Tables
 

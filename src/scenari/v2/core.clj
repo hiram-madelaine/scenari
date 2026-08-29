@@ -2,8 +2,6 @@
   (:require [clojure.test :as t]
             [clojure.java.io :as io]
             [clojure.string :as string]
-            [instaparse.transform :as insta-trans]
-            [scenari.v2.parser :as parser]
             [scenari.v2.glue :as glue])
   (:import (io.cucumber.gherkin GherkinParser)
            (io.cucumber.messages.types Envelope Source SourceMediaType StepKeywordType)
@@ -38,10 +36,6 @@
            ;; ```json marks the content type, and a step may want to know
            (opt (.getMediaType doc)) (assoc :media-type (opt (.getMediaType doc))))]))))
 
-(defn sentence-params->params [[type val]] {:type :value :val (condp = type
-                                                                :number (read-string val)
-                                                                :string (str val))})
-
 (defn file-from-fs-or-classpath [x]
   (let [r (io/resource x)
         f (when (and (instance? File x) (.exists x)) x)
@@ -60,13 +54,6 @@
                                  (find-spec-files (File. ^String basedir))
                                  (throw (RuntimeException. (str basedir " doesn't exists in path: " (System/getProperty "user.dir")))))
       "class java.io.File" (find-spec-files basedir))))
-
-(defn find-sentence-params [sentence]
-  (insta-trans/transform
-   {:SENTENCE (fn [& s] (->> s
-                             (filter (fn [[type _]] (#{:string :number} type)))
-                             (mapv sentence-params->params)))}
-   (parser/sentence sentence)))
 
 (defmulti read-source
   (fn [path]
@@ -173,15 +160,25 @@
 
 (defn- tag-names [tags] (into #{} (map #(subs (.getName %) 1)) tags))
 
-(defn pickle-step->map [ast order step]
+(defn pickle-step->map [ast order step ns-feature]
   (let [sentence (.getText step)
-        kw       (:sentence-keyword (some ast (.getAstNodeIds step)) :and)]
-    {:sentence-keyword kw
-     :sentence         sentence
-     :raw              (str (string/capitalize (name kw)) " " sentence)
-     :order            order
-     :params           (into (find-sentence-params sentence)
-                             (argument->params (opt (.getArgument step))))}))
+        kw       (:sentence-keyword (some ast (.getAstNodeIds step)) :and)
+        ;; le bloc - datatable ou docstring - ne dépend pas du glue, et le
+        ;; squelette proposé pour un step manquant compte dessus pour son arité
+        block    (vec (argument->params (opt (.getArgument step))))
+        step-map {:sentence-keyword kw
+                  :sentence         sentence
+                  :raw              (str (string/capitalize (name kw)) " " sentence)
+                  :order            order
+                  :params           block}
+        glue     (glue/find-glue-by-step-regex step-map ns-feature)]
+    (assoc step-map
+           :glue glue
+           ;; Les valeurs viennent du match : c'est le token du glue qui dit où
+           ;; elles commencent et en quoi les convertir.
+           :params (into (mapv #(hash-map :type :value :val %)
+                               (when glue (glue/step-args glue sentence)))
+                         block))))
 
 (defn ->feature-ast [source {:keys [pre-run post-run pre-scenario-run post-scenario-run default-scenario-state] :as _options} ns-feature]
   (let [envs    (envelopes source)
@@ -199,9 +196,7 @@
                    :post-run      (->hooks post-scenario-run)
                    :default-state (or default-scenario-state {})
                    :steps         (vec (map-indexed
-                                        (fn [i step]
-                                          (let [s (pickle-step->map ast i step)]
-                                            (assoc s :glue (glue/find-glue-by-step-regex s ns-feature))))
+                                        (fn [i step] (pickle-step->map ast i step ns-feature))
                                         (.getSteps pickle)))}
             (:description (some ast (.getAstNodeIds pickle)))
             (assoc :description (:description (some ast (.getAstNodeIds pickle))))))]
