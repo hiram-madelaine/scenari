@@ -101,7 +101,7 @@ Then write the code that will get executed for each scenario steps:
 
 ### Step expressions
 
-A step's sentence matcher is a [cucumber expression](https://github.com/cucumber/cucumber-expressions): `{int}` `{float}` `{word}` `{string}`, optional text `apple(s)`, alternation `hot/cold`. `{number}` is not a cucumber type — scenari defines it, so the glues written before still work, and it now accepts a sign and decimals. A sentence wrapped in `^...$` or `/.../` is read as a plain regex instead.
+A step's sentence matcher is a [cucumber expression](https://github.com/cucumber/cucumber-expressions): `{int}` `{float}` `{word}` `{string}`, optional text `apple(s)`, alternation `hot/cold`. `{number}` is not a cucumber type — scenari defines it, so the glues written before still work, and it now accepts a sign and decimals. A glue defined with a `#"..."` literal stays a plain regex whatever it contains, matching the whole sentence, and its capture groups become the arguments — make a group non-capturing (`(?:a|b)`) if it is only there to group. A *string* sentence wrapped in `^...$` or `/.../` is read as a regex too.
 
 A literal `/`, `(` or `)` in a sentence must be escaped, or it reads as alternation or optional text:
 

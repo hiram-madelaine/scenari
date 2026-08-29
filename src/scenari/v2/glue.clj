@@ -2,6 +2,7 @@
   (:require [clojure.test :as t]
             [clojure.string :as string])
   (:import (io.cucumber.cucumberexpressions ExpressionFactory ParameterType ParameterTypeRegistry Transformer)
+           (java.util.regex Pattern)
            (java.lang.reflect Type)
            (java.util Locale)))
 
@@ -31,11 +32,17 @@
   (delay (ExpressionFactory. @parameter-type-registry)))
 
 (defn step->expression
-  "La phrase d'un glue, compilée. Lève sur un token inconnu - `{produit}` sans
-  ParameterType - en nommant le glue fautif, sinon l'erreur ne dit pas lequel
-  des 400 glues chargés est en cause."
+  "La phrase d'un glue, compilée. Un litéral `#\"...\"` est une regex quoi qu'elle
+  contienne : la lire comme une expression ferait d'un `([^\"]*)` du texte
+  optionnel, et son `\\\"` lèverait. Elle est ancrée parce qu'un glue regex a
+  toujours matché la phrase entière. Lève sur un token inconnu - `{produit}` sans
+  ParameterType - en nommant le glue fautif, sinon l'erreur ne dit pas lequel des
+  400 glues chargés est en cause."
   [{:keys [step ns name]}]
-  (try (.createExpression @expression-factory (str step))
+  (try (.createExpression @expression-factory
+                          (if (instance? Pattern step)
+                            (str "^(?:" step ")$")
+                            (str step)))
        (catch Exception e
          (throw (ex-info (str "glue " ns "/" name " : " (.getMessage e))
                          {:step step :ns ns :name name} e)))))

@@ -180,7 +180,7 @@ A sentence matcher is a [cucumber expression](https://github.com/cucumber/cucumb
 - Table data: Automatically passed as a vector of maps
 - Doc strings: Automatically passed as a multi-line string
 
-A sentence wrapped in `^...$` or `/.../` is read as a plain regex instead, and its capture groups become the arguments.
+A glue defined with a `#"..."` literal stays a plain regex whatever it contains — reading it as an expression would turn a `([^"]*)` into optional text and raise on its `\"` — and it matches the whole sentence, as `re-matches` did. Its capture groups become the arguments, so a group that only groups must be made non-capturing (`(?:a|b)`). A *string* sentence wrapped in `^...$` or `/.../` is read as a regex too.
 
 ### Working with Tables
 

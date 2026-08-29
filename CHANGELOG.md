@@ -22,6 +22,11 @@ Breaking:
 
 - A step whose sentence matches no glue has no value params, only its datatable
   or doc string. Nothing ran for such a step before either.
+- The arguments of a regex glue are its capture groups, where they used to be
+  the quoted literals found in the sentence. A group that only groups -
+  `(consultation|création)` - now passes an argument, and a matcher written
+  `\"(.+)\"` passes one where `\".+\"` no longer does. On the 401 glues of a real
+  project, 9 were concerned.
 - Generated skeletons suggest cucumber's types, `{int}` and `{double}`, where
   they used to suggest `{number}`. Both still match.
 - `{string}` also matches a single-quoted `'value'`. Replayed on a corpus of 221
@@ -35,8 +40,9 @@ Gained: `{int}` `{float}` `{word}` and the other built-in types, optional text
 `apple(s)`, alternation `hot/cold`, and an undefined token now raises an error
 naming the guilty glue instead of a `PatternSyntaxException`. `{number}` is kept
 as a custom parameter type — the glues already written still match, and it now
-accepts a sign and decimals. A sentence wrapped in `^...$` or `/.../` is still
-read as a plain regex.
+accepts a sign and decimals. A glue defined with a `#"..."` literal is still a
+plain regex whatever it contains, and still matches the whole sentence; a string
+sentence wrapped in `^...$` or `/.../` is read as a regex too.
 
 Arguments passed to a step fn are unchanged for now: they still come from the
 sentence's literals, not from the expression match.

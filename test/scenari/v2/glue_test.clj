@@ -182,3 +182,20 @@
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
                           #"glue my.glue/x : (?s).*Undefined parameter type 'produit'"
                           (glue/step->expression {:step "la valeur {produit}" :ns 'my.glue :name 'x})))))
+
+(deftest regex-glue-test
+  (testing "un glue defini par un litteral #\"...\" reste une regex quoi qu'elle
+  contienne. Lue comme une expression, son `([^\"]*)` deviendrait du texte
+  optionnel et son `\\\"` leverait, ce qui cassait tous les glues regex."
+    (is (= 'g (match-name #"l'utilisateur recherche l'expression \"([^\"]*)\""
+                          "l'utilisateur recherche l'expression \"jack london\"")))
+    (is (= ["jack london"]
+           (glue/step-args {:step #"l'utilisateur recherche l'expression \"([^\"]*)\""}
+                           "l'utilisateur recherche l'expression \"jack london\""))))
+
+  (testing "une regex matche la phrase entiere, comme le faisait re-matches"
+    (is (nil? (match-name #"l'utilisateur mange" "hier l'utilisateur mange une pomme")))
+    (is (= 'g (match-name #"l'utilisateur mange" "l'utilisateur mange"))))
+
+  (testing "une alternance de premier niveau n'est pas coupee par l'ancrage"
+    (is (= 'g (match-name #"il fait chaud|il fait froid" "il fait froid")))))
