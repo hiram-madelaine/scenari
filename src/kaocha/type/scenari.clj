@@ -98,58 +98,55 @@
                  ::annotations           annotations
                  ::description           description
                  ::pre-run               pre-run
-                 ::post-run              post-run
-                 ::parallel?             (::parallel? testable)})]
+                 ::post-run              post-run})]
     (assoc testable :kaocha.test-plan/tests tests)))
 
-(defn- run-testables-parallel
-  "Fan-out feature-level, une feature par thread. `pmap` conserve l'ordre des
-  resultats, comme `testable/run-testables` -- rien a changer cote agregation.
+(defn- parallel-tagged? [testable]
+  (boolean (get (::testable/meta testable) :parallel)))
 
-  ponytail: `pmap` chunke par paquets de ncpus+2 ; si des features tres
-  inegales en duree desequilibrent la fin de suite, passer a un pool dedie."
+(defn- run-testables-tag-parallel
+  "Une feature @parallel tourne en arriere-plan (future) sans bloquer les
+  suivantes ; toute feature non taguee reste synchrone a sa place dans la
+  liste, comme aujourd'hui -- l'ordre des resultats est preserve.
+
+  ponytail: pas de limite au nombre de futures simultanes ; ajouter un pool
+  borne seulement si un jour beaucoup de features sont taguees a la fois."
   [tests test-plan]
-  (vec (pmap #(testable/run-testable % test-plan) tests)))
+  (->> tests
+       (mapv (fn [t] (if (parallel-tagged? t)
+                       (future (testable/run-testable t test-plan))
+                       (testable/run-testable t test-plan))))
+       (mapv #(cond-> % (future? %) deref))))
 
 (defmethod testable/-run :kaocha.type/scenari [testable test-plan]
-  (let [tests    (:kaocha.test-plan/tests testable)
-        results  (if (::parallel? testable)
-                   (run-testables-parallel tests test-plan)
-                   (testable/run-testables tests test-plan))
+  (let [results  (run-testables-tag-parallel (:kaocha.test-plan/tests testable) test-plan)
         testable (-> testable
                      (dissoc :kaocha.test-plan/tests)
                      (assoc :kaocha.result/tests results))]
     testable))
 
-(defn- run-feature*
-  "Corps de :kaocha.type/scenari-feature, sans souci de sortie -- appele
-  directement en sequentiel, ou sous binding de *out* en parallele."
-  [testable test-plan]
-  (t/do-report {:type        :begin-feature
-                :feature     (:kaocha.testable/desc testable)
-                :annotations (::annotations testable)
-                :description (::description testable)})
-  (sc/run-hooks
-   {:pre-run (::pre-run testable) :post-run (::post-run testable)}
-   (fn []
-     (let [results (testable/run-testables (:kaocha.test-plan/tests testable) test-plan)
-           testable (-> testable
-                        (dissoc :kaocha.test-plan/tests)
-                        (assoc :kaocha.result/tests results))]
-       (t/do-report {:type :end-feature})
-       testable))))
-
 (defmethod testable/-run :kaocha.type/scenari-feature [testable test-plan]
-  (if (::parallel? testable)
-    ;; en parallele, plusieurs features impriment en meme temps sur *out* :
-    ;; on capture la sortie de celle-ci et on l'ecrit d'un bloc a la fin,
-    ;; pour ne pas entrelacer ses lignes avec celles des autres.
-    (let [sw     (java.io.StringWriter.)
-          result (binding [*out* sw] (run-feature* testable test-plan))]
-      (print (str sw))
-      (flush)
-      result)
-    (run-feature* testable test-plan)))
+  ;; une feature @parallel tourne pendant qu'une autre est encore en train
+  ;; d'imprimer sa propre sortie -- bufferiser systematiquement evite tout
+  ;; entrelacement, meme quand rien n'est tagge (le cout est negligeable).
+  (let [sw     (java.io.StringWriter.)
+        result (binding [*out* sw]
+                 (t/do-report {:type        :begin-feature
+                               :feature     (:kaocha.testable/desc testable)
+                               :annotations (::annotations testable)
+                               :description (::description testable)})
+                 (sc/run-hooks
+                  {:pre-run (::pre-run testable) :post-run (::post-run testable)}
+                  (fn []
+                    (let [results (testable/run-testables (:kaocha.test-plan/tests testable) test-plan)
+                          testable (-> testable
+                                       (dissoc :kaocha.test-plan/tests)
+                                       (assoc :kaocha.result/tests results))]
+                      (t/do-report {:type :end-feature})
+                      testable))))]
+    (print (str sw))
+    (flush)
+    result))
 
 (defmethod testable/-run :kaocha.type/scenari-scenario [testable test-plan]
   (t/do-report {:type :begin-scenario :scenario testable})

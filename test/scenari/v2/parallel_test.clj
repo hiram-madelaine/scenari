@@ -1,7 +1,7 @@
 (ns scenari.v2.parallel-test
-  "Preuve que :kaocha.type.scenari/parallel? fait vraiment tourner des
-  features en parallele (et pas en sequentiel deguise), et que sans l'option
-  le comportement reste sequentiel."
+  "Preuve que le tag gherkin @parallel fait vraiment tourner une feature en
+  arriere-plan pendant que la suite continue, sans affecter les features non
+  taguees (qui restent sequentielles, comme avant)."
   (:require [clojure.test :as t :refer [deftest testing is]]
             [scenari.v2.core :as v2]
             [kaocha.type.scenari]
@@ -16,30 +16,47 @@
 (defn- post-a [] (record! :a :end))
 (defn- pre-b [] (record! :b :start))
 (defn- post-b [] (record! :b :end))
+(defn- pre-c [] (record! :c :start))
+(defn- post-c [] (record! :c :end))
+(defn- pre-d [] (record! :d :start))
+(defn- post-d [] (record! :d :end))
 
 (v2/defwhen "the parallel step sleeps a bit" [state]
   (Thread/sleep 200)
   state)
 
 (v2/deffeature parallel-feature-a
-  "Feature: parallel a
+  "@parallel
+Feature: parallel a
   Scenario: sleep a
       When the parallel step sleeps a bit"
   {:pre-run [#'pre-a] :post-run [#'post-a]})
 
 (v2/deffeature parallel-feature-b
-  "Feature: parallel b
+  "@parallel
+Feature: parallel b
   Scenario: sleep b
       When the parallel step sleeps a bit"
   {:pre-run [#'pre-b] :post-run [#'post-b]})
 
-(defn- loaded-suite [parallel?]
+(v2/deffeature sequential-feature-c
+  "Feature: sequential c
+  Scenario: sleep c
+      When the parallel step sleeps a bit"
+  {:pre-run [#'pre-c] :post-run [#'post-c]})
+
+(v2/deffeature sequential-feature-d
+  "Feature: sequential d
+  Scenario: sleep d
+      When the parallel step sleeps a bit"
+  {:pre-run [#'pre-d] :post-run [#'post-d]})
+
+(defn- loaded-suite []
   (testable/load {:kaocha.testable/type           :kaocha.type/scenari
                   :kaocha.testable/id             :parallel-suite
                   :kaocha/source-paths            ["src"]
                   :kaocha/test-paths              ["test/scenari/v2"]
-                  :kaocha.type.scenari/glue-paths ["test/scenari/v2"]
-                  :kaocha.type.scenari/parallel?  parallel?}))
+                  :kaocha.type.scenari/glue-paths ["test/scenari/v2"]}))
 
 (defn- window [id]
   (let [entries (filter #(= id (:id %)) @timing-journal)]
@@ -49,14 +66,12 @@
 (defn- overlap? [[s1 e1] [s2 e2]]
   (< (max s1 s2) (min e1 e2)))
 
-(deftest features-run-concurrently-when-parallel-test
-  (testing "two features, each timestamped at pre-run/post-run, overlap iff parallel? is set"
-    (reset! timing-journal [])
-    (testable/-run (loaded-suite true) {})
+(deftest at-parallel-tag-runs-concurrently-test
+  (reset! timing-journal [])
+  (testable/-run (loaded-suite) {})
+  (testing "@parallel-tagged features overlap"
     (is (overlap? (window :a) (window :b))
-        "with parallel? true, feature A and B windows must overlap"))
-  (testing "and stay sequential when parallel? is not set"
-    (reset! timing-journal [])
-    (testable/-run (loaded-suite false) {})
-    (is (not (overlap? (window :a) (window :b)))
-        "with parallel? false (default), features run one after another")))
+        "parallel-feature-a and -b are both @parallel, their windows must overlap"))
+  (testing "untagged features stay sequential, unaffected by the others"
+    (is (not (overlap? (window :c) (window :d)))
+        "sequential-feature-c and -d carry no tag, one must finish before the other starts")))
