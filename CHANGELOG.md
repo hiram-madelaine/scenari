@@ -42,7 +42,9 @@ naming the guilty glue instead of a `PatternSyntaxException`. `{number}` is kept
 as a custom parameter type — the glues already written still match, and it now
 accepts a sign and decimals. A glue defined with a `#"..."` literal is still a
 plain regex whatever it contains, and still matches the whole sentence; a string
-sentence wrapped in `^...$` or `/.../` is read as a regex too.
+sentence wrapped in `^...$` or `/.../` is read as a regex too. The `/` of an
+alternation is stripped from the generated var name, which `defn` would reject
+as a qualified symbol.
 
 Arguments passed to a step fn are unchanged for now: they still come from the
 sentence's literals, not from the expression match.

@@ -238,3 +238,12 @@
     keeps the whole feature"
       (is (= [["tagged feature" "tagged scenario"]] (focus-meta suite :annotated)))
       (is (= [["tagged feature" "tagged scenario"]] (focus-meta suite :var-tagged))))))
+
+(t/deftest alternation-var-name-test
+  (t/testing "l'alternance met une barre oblique dans le nom du var, ce qui en
+  faisait un symbole qualifié : `defn` refusait le glue au chargement"
+    (let [v (v2/defthen "le cafe est chaud/froid" [state] state)]
+      (is (var? v))
+      (is (= 'le-cafe-est-chaud-froid (:name (meta v))))
+      (is (= "le cafe est chaud/froid" (:step (meta v)))
+          "seul le nom du var est nettoyé, la phrase garde son alternance"))))

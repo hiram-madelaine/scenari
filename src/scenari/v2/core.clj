@@ -292,10 +292,14 @@
                               :scenari/feature-ast feature-ast#
                               :scenari/feature-test true) [] (scenari.v2.test/run-features (var ~name#))))))
 
-(defn re->symbol [re]
+(defn re->symbol
+  "Le nom du var d'un glue, tiré de sa phrase. La barre oblique de l'alternance
+  `complète/partielle` en ferait un symbole qualifié, que `defn` refuse."
+  [re]
   (-> (str re)
       (string/replace #"\\\"\(\.\*\)\\\"" "param")
       (string/replace #" " "-")
+      (string/replace "/" "-")
       symbol))
 
 ;; TODO make a step evaluable as a standalone fun
