@@ -139,3 +139,46 @@
 
 (comment
   (run-tests))
+(defn- match-name
+  "Le nom du glue qui matche la phrase, nil sinon. `do-report` est neutralisé :
+  l'absence de match émet un :missing-step, que ce test n'a pas à afficher."
+  [step-expression sentence]
+  (with-redefs [clojure.test/do-report (fn [_] nil)]
+    (:name (glue/find-glue-by-step-regex {:sentence sentence} 'test.ns
+                                         [{:step step-expression :ns 'test.ns :name 'g}]))))
+
+(deftest cucumber-expression-test
+  (testing "les tokens de cucumber expressions, en plus des deux connus"
+    (are [expression sentence] (= 'g (match-name expression sentence))
+      "j'ai {int} pommes"        "j'ai 42 pommes"
+      "j'ai {int} pommes"        "j'ai -42 pommes"
+      "le prix est {float} euro" "le prix est 12.5 euro"
+      "j'ai {word} pommes"       "j'ai trois pommes"
+      "j'ai {string} pommes"     "j'ai \"trois\" pommes"))
+
+  (testing "{number} n'est pas un type cucumber : il est redéfini pour les glues
+  déjà écrits, et accepte désormais le signe et les décimales"
+    (are [sentence] (= 'g (match-name "la valeur est {number}" sentence))
+      "la valeur est 123"
+      "la valeur est -3"
+      "la valeur est 2.5"))
+
+  (testing "texte optionnel et alternance"
+    (are [expression sentence] (= 'g (match-name expression sentence))
+      "j'ai 1 pomme(s)"         "j'ai 1 pomme"
+      "j'ai 2 pomme(s)"         "j'ai 2 pommes"
+      "le cafe est chaud/froid" "le cafe est froid"))
+
+  (testing "une barre oblique litterale s'echappe - le cas se trouve dans de
+  vraies features, `les dossiers {string} / {string}`"
+    (is (nil? (match-name "les dossiers {string} \\/ {string}" "les dossiers \"a\" | \"b\"")))
+    (is (= 'g (match-name "les dossiers {string} \\/ {string}" "les dossiers \"a\" / \"b\""))))
+
+  (testing "une phrase ancree reste lue comme une regex"
+    (is (= 'g (match-name "^j'invoque (.*) sur l'URL$" "j'invoque un GET sur l'URL"))))
+
+  (testing "un token inconnu nomme le glue fautif, au lieu d'une
+  PatternSyntaxException sans provenance"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"glue my.glue/x : (?s).*Undefined parameter type 'produit'"
+                          (glue/step->expression {:step "la valeur {produit}" :ns 'my.glue :name 'x})))))

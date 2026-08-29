@@ -99,6 +99,18 @@ Then write the code that will get executed for each scenario steps:
   id)
 ```
 
+### Step expressions
+
+A step's sentence matcher is a [cucumber expression](https://github.com/cucumber/cucumber-expressions): `{int}` `{float}` `{word}` `{string}`, optional text `apple(s)`, alternation `hot/cold`. `{number}` is not a cucumber type — scenari defines it, so the glues written before still work, and it now accepts a sign and decimals. A sentence wrapped in `^...$` or `/.../` is read as a plain regex instead.
+
+A literal `/`, `(` or `)` in a sentence must be escaped, or it reads as alternation or optional text:
+
+```clojure
+(defthen "the folders {string} \\/ {string} exist" [state a b] ...)
+```
+
+**Note**: matching is done by the expression, but the arguments a step fn receives are still extracted from the *sentence* (every quoted literal and every number in it). `{int}`, `{string}` and `{number}` line up; `{float}` and `{word}` do not yet.
+
 **Tips**: you can get a function snippet generated for you when executing the spec without step function. Think about enclosing with quote 'your data' in step sentence to get them detected by the parser and it'll generate a step function skeleton in the output with the correct sentence matcher group.
 Example: 
 
@@ -334,9 +346,8 @@ Gaps against Cucumber, roughly by value/effort.
 
 ### Step expressions
 
-* [ ] more tokens: `{int}` `{float}` `{word}`, optional text `apple(s)`, alternation `hot/cold`. Only `{string}` and `{number}` (`\d+`, so no negative and no decimal) exist today
-* [ ] an unknown token is a `PatternSyntaxException` out of `sentence-with-tokens->regex`, not a missing step -- `{int}` currently crashes glue resolution
-* [ ] custom parameter types: a token that converts its capture into a domain value
+* [ ] arguments still come from the *sentence*, not from the expression match: `{float}` and `{word}` select the right glue but the fn receives what the sentence's literals give (`12.5` arrives as two params, `12` and `5`)
+* [ ] custom parameter types: the `ParameterTypeRegistry` is in `glue.clj`, it needs a public way to add one
 * [ ] a datatable API beyond a vector of string maps: lists, transpose, diff, row-to-entity conversion
 
 ### Execution

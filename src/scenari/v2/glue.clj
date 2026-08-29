@@ -1,16 +1,39 @@
 (ns scenari.v2.glue
   (:require [clojure.test :as t]
-            [clojure.string :as string]))
+            [clojure.string :as string])
+  (:import (io.cucumber.cucumberexpressions ExpressionFactory ParameterType ParameterTypeRegistry Transformer)
+           (java.lang.reflect Type)
+           (java.util Locale)))
 
 (def ^:private glues-cache (atom nil))
 
-(defn- sentence-with-tokens->regex
-  "Replace all value token like {string} and {number} in sentence. Returns a regex"
-  [s]
-  (-> (str s)
-      (string/replace #"\{string\}" "\"([^\"]*)\"")
-      (string/replace #"\{number\}" "(\\\\d+)")
-      re-pattern))
+(def ^:private no-types
+  "Le second argument de `.match` déclare les types attendus par la fonction
+  glue. Une fn Clojure ne déclare rien, la conversion reste celle du token."
+  (into-array Type []))
+
+(def ^:private expression-factory
+  "Les *cucumber expressions*, la moitié que gherkin ne couvre pas : `{int}`
+  `{float}` `{word}` `{string}`, le texte optionnel `apple(s)` et l'alternance
+  `hot/cold`. `{number}` n'en fait pas partie - il est redéfini ici pour les
+  glues déjà écrits, et gagne au passage le signe et les décimales. Une phrase
+  encadrée de `^...$` ou de `/.../` reste lue comme une regex, comme avant."
+  (delay
+    (let [registry (ParameterTypeRegistry. Locale/ENGLISH)]
+      (.defineParameterType registry
+                            (ParameterType. "number" "-?\\d+(?:\\.\\d+)?" Object
+                                            (reify Transformer (transform [_ s] (read-string s)))))
+      (ExpressionFactory. registry))))
+
+(defn step->expression
+  "La phrase d'un glue, compilée. Lève sur un token inconnu - `{produit}` sans
+  ParameterType - en nommant le glue fautif, sinon l'erreur ne dit pas lequel
+  des 400 glues chargés est en cause."
+  [{:keys [step ns name]}]
+  (try (.createExpression @expression-factory (str step))
+       (catch Exception e
+         (throw (ex-info (str "glue " ns "/" name " : " (.getMessage e))
+                         {:step step :ns ns :name name} e)))))
 
 (defn invalidate-glues-cache!
   "Invalidate the `all-glues` cache. Called by the step definition macros: a glue
@@ -27,9 +50,9 @@
    time of a large feature suite. The result is therefore memoized, and recomputed
    as soon as a namespace is loaded or a step is (re)defined.
 
-   Each glue carries its `:step-regex`, compiled here once, because matching a step
-   compares it against every glue: computing it in the matching loop instead
-   recompiled one Pattern per (step, glue) pair — 1.3M compilations on a suite of
+   Each glue carries its `:expression`, compiled here once, because matching a step
+   compares it against every glue: compiling it in the matching loop instead built
+   one Pattern per (step, glue) pair — 1.3M compilations on a suite of
    3000 steps and 400 glues."
   []
   (let [nss (all-ns)
@@ -41,7 +64,7 @@
                            (comp (mapcat #(vals (ns-publics %)))
                                  (map #(assoc (meta %) :ref %))
                                  (filter #(contains? % :step))
-                                 (map #(assoc % :step-regex (sentence-with-tokens->regex (:step %)))))
+                                 (map #(assoc % :expression (step->expression %))))
                            nss)]
         (reset! glues-cache {:ns-count k :glues computed})
         computed))))
@@ -70,11 +93,10 @@
   ([step ns-feature] (find-glue-by-step-regex step ns-feature (all-glues)))
   ([step ns-feature glues]
    (let [{:keys [sentence]} step
-         ;; `:step-regex` is precompiled by `all-glues`; the fallback covers a glue
-         ;; map built by hand and passed straight to this arity.
-         matched-glues (filter #(seq (re-matches (or (:step-regex %)
-                                                     (sentence-with-tokens->regex (:step %)))
-                                                 sentence))
+         ;; `:expression` est précompilée par `all-glues` ; le repli couvre un
+         ;; glue construit à la main et passé directement à cette arité.
+         matched-glues (filter #(.isPresent (.match (or (:expression %) (step->expression %))
+                                                    sentence no-types))
                                glues)]
      (cond
        (empty? matched-glues)
@@ -85,13 +107,13 @@
        (let [[matched-glue & conflicts] (find-closest-glues-by-ns matched-glues ns-feature)]
          (if conflicts
            (throw (RuntimeException.
-                    (str (+ (count conflicts) 1)
-                         " matching functions were found for the following step sentence:\n "
-                         sentence
-                         ", please refine your regexes that match: \n"
-                         matched-glue "\n"
-                         (string/join "\n" conflicts))))
+                   (str (+ (count conflicts) 1)
+                        " matching functions were found for the following step sentence:\n "
+                        sentence
+                        ", please refine your regexes that match: \n"
+                        matched-glue "\n"
+                        (string/join "\n" conflicts))))
            (assoc matched-glue
-             :warning (str (count matched-glues) " matching functions were found for this step sentence"))))
+                  :warning (str (count matched-glues) " matching functions were found for this step sentence"))))
 
        :else (first matched-glues)))))

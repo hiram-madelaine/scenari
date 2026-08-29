@@ -8,6 +8,7 @@
              clojure.java-time/clojure.java-time {:mvn/version "0.3.2"}
              instaparse/instaparse               {:mvn/version "1.4.12"}
              io.cucumber/gherkin                 {:mvn/version "32.1.1"}
+             io.cucumber/cucumber-expressions    {:mvn/version "20.1.0"}
              commons-io/commons-io               {:mvn/version "2.6"}
              lambdaisland/kaocha                 {:mvn/version "1.87.1366"}
              org.clojure/tools.namespace         {:mvn/version "0.3.1"}

@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file. This change
 
 ## Changed ##
 
+Step sentences are matched with `io.cucumber/cucumber-expressions`, the
+reference implementation, instead of the two hand-rolled token substitutions.
+
+Gained: `{int}` `{float}` `{word}` and the other built-in types, optional text
+`apple(s)`, alternation `hot/cold`, and an undefined token now raises an error
+naming the guilty glue instead of a `PatternSyntaxException`. `{number}` is kept
+as a custom parameter type — the glues already written still match, and it now
+accepts a sign and decimals. A sentence wrapped in `^...$` or `/.../` is still
+read as a plain regex.
+
+Arguments passed to a step fn are unchanged for now: they still come from the
+sentence's literals, not from the expression match.
+
+Breaking:
+
+- A literal `/`, `(` or `)` in a sentence matcher must be escaped (`\/`), or it
+  reads as alternation or optional text. Replayed on a 221-file corpus: 2
+  sentences out of 1123 were concerned.
+
 Feature files are now parsed by `io.cucumber/gherkin`, the reference
 implementation, instead of the hand-written instaparse grammar. `->feature-ast`
 builds the feature map from gherkin *pickles*, which already resolve `Background`
