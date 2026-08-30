@@ -20,12 +20,14 @@
      ;; Actions and GitLab set it that way, Jenkins does not).
      ;; les profils ne fusionnent pas : scenari-tags, qui apporte `--tags`, doit
      ;; être listé dans les deux
-     ;; scenari-doc (`--doc-html`) vient après scenari-tags : il documente le
-     ;; test-plan une fois filtré
+     ;; scenari-doc (`--doc-html`) et scenari-dry-run (`--dry-run`) viennent
+     ;; après scenari-tags : ils lisent le test-plan une fois filtré
   :kaocha/plugins  #profile {:default [:kaocha.plugin/scenari-tags
-                                       :kaocha.plugin/scenari-doc]
+                                       :kaocha.plugin/scenari-doc
+                                       :kaocha.plugin/scenari-dry-run]
                              :ci      [:kaocha.plugin/scenari-tags
                                        :kaocha.plugin/scenari-doc
+                                       :kaocha.plugin/scenari-dry-run
                                        :kaocha.plugin/profiling
                                        :kaocha.plugin/junit-xml]}
   :kaocha.plugin.junit-xml/target-file "target/junit.xml"}

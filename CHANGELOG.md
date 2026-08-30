@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file. This change
 
 ## Added ##
 
+`--dry-run`, à travers le plugin `:kaocha.plugin/scenari-dry-run` : vérifie que
+chaque step des scénarios sélectionnés résout bien un step definition, sans
+rien exécuter. Le rapport dit où chaque step manquant est utilisé (feature >
+scénario), et la sortie est non nulle s'il en reste un — de quoi en faire une
+étape de CI.
+
+Le glue étant résolu au parse, tout est déjà dans le test-plan : il suffit de
+le parcourir. Sans ça, un step non défini n'explosait qu'à l'exécution, sur un
+`(apply nil ...)`, après les steps précédents et leurs effets de bord.
+
 `--doc-html target/features.html`, through the new
 `:kaocha.plugin/scenari-doc` plugin: la documentation des scénarios en un
 document HTML — sommaire cliquable, une ancre par scénario, tags, descriptions,

@@ -8,6 +8,7 @@
             [kaocha.plugin.filter :as kfilter]
             [kaocha.plugin.scenari-tags :as stags]
             [kaocha.plugin.scenari-doc :as sdoc]
+            [kaocha.plugin.scenari-dry-run :as sdry]
             [kaocha.repl :as krepl]
             [testit.core :refer :all])
   (:import [io.cucumber.tagexpressions TagExpressionParser]))
@@ -339,6 +340,32 @@
         (is (string/includes? html "<span class=\"badge fail\">fail</span>"))
         (is (string/includes? html "<li class=\"step pending\">"))
         (is (string/includes? html "<pre class=\"error\">boom</pre>"))))))
+
+(t/deftest scenari-dry-run-test
+  (let [suite (testable/-load {::testable/type                 :kaocha.type/scenari
+                               :kaocha/source-paths            ["src"]
+                               :kaocha/test-paths              ["test/scenari/v2"]
+                               :kaocha.type.scenari/glue-paths ["scenari/v2"]})]
+
+    (t/testing "tous les steps des features du repo résolvent un glue"
+      (is (empty? (sdry/undefined-steps {:kaocha.test-plan/tests [suite]}))))
+
+    (t/testing "un step sans glue est repéré dans le test-plan, avec l'endroit
+    où il est utilisé - le parse, lui, n'imprime que la phrase"
+      (let [plan    {:kaocha.test-plan/tests
+                     [{:kaocha.test-plan/tests
+                       [{::testable/type      :kaocha.type/scenari-feature
+                         ::testable/id        :ns/f
+                         ::testable/desc      "f"
+                         :kaocha.test-plan/tests
+                         [{::testable/id   :ns.f/s
+                           ::testable/desc "s"
+                           :steps          [{:raw "Given ça" :glue {:ref identity}}
+                                            {:raw "When ça manque"}]}]}]}]}
+            missing (sdry/undefined-steps plan)]
+        (is (= [["f" "s" "When ça manque"]]
+               (map (fn [[f s step]] [f s (:raw step)]) missing)))
+        (is (= "  f > s\n    When ça manque" (sdry/report missing)))))))
 
 (t/deftest alternation-var-name-test
   (t/testing "l'alternance met une barre oblique dans le nom du var, ce qui en
