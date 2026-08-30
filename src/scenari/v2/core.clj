@@ -220,7 +220,15 @@
     (let [f (get-in step [:glue :ref])
           params (cons scenario-state (mapv :val (get step :params)))]
       (try (let [result (apply f params)
-                 state (last result)
+                 out (last result)
+                 ;; Un step qui finit par une assertion ou un effet de bord rend
+                 ;; true/false/nil - jamais un etat voulu. Sans ca, un defthen
+                 ;; sans `state` final remplace silencieusement l'etat par le
+                 ;; booleen de son `is`, et le step suivant recoit true.
+                 ;; ponytail: un step qui veut vraiment nil ou false comme etat
+                 ;; ne peut pas ; le jour ou ca arrive, il faudra un marqueur
+                 ;; explicite plutot qu'une heuristique sur le type.
+                 state (if (or (nil? out) (boolean? out)) scenario-state out)
                  any-fail? (> (:fail (deref clojure.test/*report-counters*)) 0)]
              (-> step
                  (assoc :input-state scenario-state)

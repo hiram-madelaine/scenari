@@ -3,6 +3,18 @@ All notable changes to this project will be documented in this file. This change
 
 # [Unreleased] #
 
+## Changed ##
+
+Un step dont la dernière forme rend `nil` ou un booléen garde l'état qu'il a
+reçu, au lieu de le propager. C'est ce que rendent une assertion (`is` rend le
+booléen de son prédicat) et un effet de bord (`doseq`, `println`) : un
+`defthen` qui oubliait son `state` final remplaçait l'état du scénario par
+`true`, sans erreur, et le step suivant recevait ce booléen. Le `state` final
+d'un step qui ne fait que vérifier devient inutile.
+
+Un step qui voudrait vraiment `nil` ou `false` comme état ne le peut plus —
+aucun n'existe dans le code, ni dans la doc.
+
 ## Added ##
 
 `--dry-run`, à travers le plugin `:kaocha.plugin/scenari-dry-run` : vérifie que

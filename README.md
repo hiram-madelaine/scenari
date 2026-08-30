@@ -344,6 +344,15 @@ Steps often produce side effect or retrieve some stuffs (fn, data) to be used in
          (do-something param1 k2 param2) ...)
 ```
 
+A step whose last form returns `nil`, `true` or `false` — an assertion, a
+`doseq`, a `println` — keeps the state it was given, instead of passing that
+value on. So a `defthen` that only asserts needs no trailing `state`:
+
+```clojure
+(defthen "my cart should contain {number} item" [state n]
+         (is (= n (count (:cart state)))))   ; the next step still gets state
+```
+
 ### Advanced usage (deprecated)
 
 I use Spexec to test Spexec (yes it eats its own dog food, pretty amazing :-) only a dynamic language like Lisp can do that as easily), only the bootstrap step "Given the step function" is needed:

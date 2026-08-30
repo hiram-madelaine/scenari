@@ -146,6 +146,23 @@ Feature: mixed tags
       (is (= 1 (count (filter #(and (= :fail (:type %)) (instance? Throwable (:actual %)))
                               @events)))))))
 
+(v2/defthen "the assertion is the last form" [state] (is (= {:foo 1} state)))
+(v2/defthen "the side effect is the last form" [state] (run! identity [1 2]))
+
+(deftest state-survives-a-non-state-return-test
+  (testing "un step qui finit par une assertion ou un effet de bord rend
+  true/false/nil : l'etat d'entree est garde, sinon le step suivant recoit ce
+  booleen et l'oubli du `state` final ne se voit qu'au step d'apres"
+    (let [steps (-> (v2/->feature-ast
+                     (str "Feature: f\n  Scenario: s\n"
+                          "    Then the assertion is the last form\n"
+                          "    Then the side effect is the last form\n"
+                          "    Then My initial state contains foo")
+                     {:default-scenario-state {:foo 1}} *ns*)
+                    :scenarios first v2/run-scenario :steps)]
+      (is (= [{:foo 1} {:foo 1} {:foo 1}] (map :output-state steps)))
+      (is (= [:success :success :success] (map :status steps))))))
+
 (deftest run-hooks-test
   (testing "the teardown runs even when the body throws - a report, an ambiguous
   glue or a pre-run hook can throw past run-step's catch, and that is the very
