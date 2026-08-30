@@ -31,7 +31,6 @@
              :test          {:extra-paths ["test"]
                              :extra-deps  {org.clojure/test.check         {:mvn/version "1.1.0"}
                                            metosin/testit                {:mvn/version "0.4.0"}
-                                           lambdaisland/kaocha           {:mvn/version "1.0.732"}
                                            lambdaisland/kaocha-junit-xml {:mvn/version "1.17.101"}}}
              :runner        {:extra-deps {com.cognitect/test-runner {:git/url "https://github.com/cognitect-labs/test-runner"
                                                                      :sha     "76568540e7f40268ad2b646110f237a60295fa3c"}}
