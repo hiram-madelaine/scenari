@@ -47,6 +47,19 @@ Feature: tagged feature
       Then My initial state contains foo"
   {:default-scenario-state {:foo 1}})
 
+;; used by `--tags`: a feature tag shared by two scenarios, only one of which
+;; carries its own tag. `--focus-meta` cannot tell them apart - it drops the
+;; focus for the whole subtree as soon as the feature matches.
+(v2/deffeature mixed-tags-feature
+  "@shared
+Feature: mixed tags
+  @picked
+  Scenario: picked scenario
+      Then My initial state contains foo
+  Scenario: plain scenario
+      Then My initial state contains foo"
+  {:default-scenario-state {:foo 1}})
+
 (defn- loaded-features
   "Every feature testable kaocha builds, as ./test.sh would load them."
   []

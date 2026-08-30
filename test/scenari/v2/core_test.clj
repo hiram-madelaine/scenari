@@ -5,8 +5,10 @@
             [kaocha.type.scenari]
             [kaocha.testable :as testable]
             [kaocha.plugin.filter :as kfilter]
+            [kaocha.plugin.scenari-tags :as stags]
             [kaocha.repl :as krepl]
-            [testit.core :refer :all]))
+            [testit.core :refer :all])
+  (:import [io.cucumber.tagexpressions TagExpressionParser]))
 
 (v2/defgiven #"My duplicated step in other ns and feature ns" [state]
   state)
@@ -237,7 +239,49 @@
     (t/testing "--focus-meta on a gherkin tag of a feature, or on deffeature var meta,
     keeps the whole feature"
       (is (= [["tagged feature" "tagged scenario"]] (focus-meta suite :annotated)))
-      (is (= [["tagged feature" "tagged scenario"]] (focus-meta suite :var-tagged))))))
+      (is (= [["tagged feature" "tagged scenario"]] (focus-meta suite :var-tagged))))
+
+    (t/testing "--focus-meta on a feature tag drags in the scenarios that do not
+    carry it: the focus is dropped for the whole subtree as soon as a node matches"
+      (is (= [["mixed tags" "picked scenario"]
+              ["mixed tags" "plain scenario"]]
+             (focus-meta suite :shared))))))
+
+(defn- tags
+  "[feature scenario] pairs left after --tags EXPR."
+  [suite expr]
+  (surviving-scenarios (stags/filter-testable (TagExpressionParser/parse expr) suite)))
+
+(t/deftest kaocha-tag-expression-test
+  (let [suite (testable/-load {::testable/type                 :kaocha.type/scenari
+                               :kaocha/source-paths            ["src"]
+                               :kaocha/test-paths              ["test/scenari/v2"]
+                               :kaocha.type.scenari/glue-paths ["scenari/v2"]})]
+    (t/testing "a scenario tag keeps that scenario alone"
+      (is (= [["mixed tags" "picked scenario"]] (tags suite "@picked"))))
+
+    (t/testing "a feature tag reaches every scenario - the pickle compiler already
+    made them inherit it"
+      (is (= [["mixed tags" "picked scenario"]
+              ["mixed tags" "plain scenario"]]
+             (tags suite "@shared"))))
+
+    (t/testing "and / not, evaluated per scenario: the case --focus-meta cannot express"
+      (is (= [["mixed tags" "plain scenario"]] (tags suite "@shared and not @picked")))
+      (is (= [["tagged feature" "tagged scenario"]]
+             (tags suite "@annotated and @scenario-annotated"))))
+
+    (t/testing "parentheses"
+      (is (= [["tagged feature" "tagged scenario"]]
+             (tags suite "(@picked or @scenario-annotated) and not @shared"))))
+
+    (t/testing "an expression matching nothing skips the features and the suite,
+    so the reporter does not announce empty groups"
+      (is (empty? (tags suite "@nope")))
+      (is (::testable/skip (stags/filter-testable (TagExpressionParser/parse "@nope") suite))))
+
+    (t/testing "an invalid expression throws, so the message reaches the user"
+      (is (thrown? Exception (TagExpressionParser/parse "@a and"))))))
 
 (t/deftest alternation-var-name-test
   (t/testing "l'alternance met une barre oblique dans le nom du var, ce qui en

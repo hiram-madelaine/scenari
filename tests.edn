@@ -18,7 +18,10 @@
      ;; and reports 0.000000 everywhere without it.
      ;; kaocha picks the :ci profile only when CI is exactly "true" (GitHub
      ;; Actions and GitLab set it that way, Jenkins does not).
-  :kaocha/plugins  #profile {:default []
-                             :ci      [:kaocha.plugin/profiling
+     ;; les profils ne fusionnent pas : scenari-tags, qui apporte `--tags`, doit
+     ;; être listé dans les deux
+  :kaocha/plugins  #profile {:default [:kaocha.plugin/scenari-tags]
+                             :ci      [:kaocha.plugin/scenari-tags
+                                       :kaocha.plugin/profiling
                                        :kaocha.plugin/junit-xml]}
   :kaocha.plugin.junit-xml/target-file "target/junit.xml"}

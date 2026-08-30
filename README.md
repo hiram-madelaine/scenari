@@ -218,6 +218,50 @@ You are able to launch your scenario using kaocha repl utility function
 ```
 Suitable when using kaocha to manage test lifecycle.
 
+#### Filtering by tag
+
+Register the `scenari-tags` plugin to get `--tags`, which takes a
+[cucumber tag expression](https://github.com/cucumber/tag-expressions):
+
+```clojure
+#kaocha/v1
+        {:tests   [...]
+         :kaocha/plugins [:kaocha.plugin/scenari-tags]}
+```
+
+```bash
+./test.sh --tags "@smoke and not @wip"
+./test.sh --tags "(@api or @ui) and not @slow"
+```
+
+The expression is evaluated **per scenario**, on the gherkin `@annotations` the
+scenario carries — including those it inherited from its `Feature`, its `Rule`
+and its `Examples` table. So `--tags "@smoke and not @wip"` on a feature tagged
+`@smoke` runs every scenario of that feature except the `@wip` ones.
+
+kaocha's own `--focus-meta` / `--skip-meta` still work, and combine with
+`--tags`, but they are limited to OR: a repeated `--focus-meta` matches a
+testable carrying *any* of the keys, and the focus is dropped for a whole
+subtree as soon as one node matches — a feature tagged `@smoke` therefore runs
+all of its scenarios, tagged or not. What each can express:
+
+| cucumber tag expression | with `--focus-meta` / `--skip-meta` |
+|---|---|
+| `@smoke` | `--focus-meta :smoke`, but the whole feature if the tag is on the feature |
+| `not @wip` | `--skip-meta :wip` |
+| `@smoke or @api` | `--focus-meta :smoke --focus-meta :api` |
+| `@smoke and not @wip` | `--focus-meta :smoke --skip-meta :wip` |
+| `@smoke and @api` | ✗ |
+| `(@a or @b) and (@c or @d)` | ✗ |
+| `not (@a and @b)` | ✗ |
+
+Two differences worth knowing: `--focus-meta` also reads the var metadata of a
+`deffeature` (`(deffeature ^:wip my-feature ...)`) while `--tags` only reads
+gherkin tags, and `--tags` leaves non-scenari suites alone — combine it with
+`--focus :scenario` to run the features only. The expression can also be set in
+`tests.edn` as `:kaocha.plugin.scenari-tags/expression`, which is how to use it
+from `kaocha.repl`.
+
 ### Using hooks
 By providing an options maps in `scenari.v2.core/deffeature`, you can specify function which execute :
 - `:pre-run` before feature execution

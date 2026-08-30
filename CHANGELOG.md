@@ -3,6 +3,21 @@ All notable changes to this project will be documented in this file. This change
 
 # [Unreleased] #
 
+## Added ##
+
+`--tags "@smoke and not @wip"`, the cucumber tag expression syntax, through the
+new `:kaocha.plugin/scenari-tags` kaocha plugin. The expression is parsed by
+`io.cucumber/tag-expressions` — cucumber's own — and evaluated per scenario, on
+the gherkin tags it carries, inherited `Feature` / `Rule` / `Examples` tags
+included.
+
+kaocha's `--focus-meta` / `--skip-meta` could only express an OR of tags, and
+dropped the focus for a whole subtree as soon as one node matched: a feature
+tagged `@smoke` ran all of its scenarios, tagged or not. `@a and @b`,
+parentheses and `not (...)` were out of reach. Both mechanisms still work and
+combine; `--tags` only skips scenari testables, so a clojure.test suite in the
+same run is left alone.
+
 ## Fixed ##
 
 A step that throws now produces a `<failure>` in the junit-xml report and shows
