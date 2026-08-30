@@ -15,6 +15,10 @@ Le glue étant résolu au parse, tout est déjà dans le test-plan : il suffit d
 le parcourir. Sans ça, un step non défini n'explosait qu'à l'exécution, sur un
 `(apply nil ...)`, après les steps précédents et leurs effets de bord.
 
+Le dry run compte aussi l'inverse — les step definitions qu'aucun scénario
+sélectionné n'utilise — et `--unused-glues` les liste. Purement indicatif : un
+filtre réduit la sélection, donc grossit la liste.
+
 `--doc-html target/features.html`, through the new
 `:kaocha.plugin/scenari-doc` plugin: la documentation des scénarios en un
 document HTML — sommaire cliquable, une ancre par scénario, tags, descriptions,

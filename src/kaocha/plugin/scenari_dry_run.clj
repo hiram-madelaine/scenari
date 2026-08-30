@@ -16,7 +16,8 @@
             [kaocha.output :as output]
             [kaocha.plugin :refer [defplugin]]
             [kaocha.plugin.scenari-doc :as doc]
-            [kaocha.testable :as testable]))
+            [kaocha.testable :as testable]
+            [scenari.v2.glue :as glue]))
 
 (defn undefined-steps
   "`[feature scenario step]` pour chaque step sans glue, dans l'ordre de l'arbre."
@@ -40,16 +41,33 @@
                      (map (fn [[_ _ step]] (str "    " (:raw step))) group))]
      line)))
 
+(defn unused-glues
+  "L'inverse : les step definitions qu'aucun des `steps` n'utilise. Indicatif -
+  un filtre (`--tags`, `--focus`) réduit la sélection, donc grossit la liste, et
+  `all-glues` voit aussi les glues des namespaces de test chargés."
+  [steps]
+  (let [used (set (keep #(get-in % [:glue :ref]) steps))]
+    (->> (glue/all-glues)
+         (remove (comp used :ref))
+         (sort-by (juxt (comp str :ns) (comp str :name))))))
+
+(defn unused-report [glues]
+  (str/join "\n" (for [{:keys [ns name step]} glues]
+                   (str "  " ns "/" name "  \"" step "\""))))
+
 (defplugin kaocha.plugin/scenari-dry-run
   "Vérifie que tous les steps ont un glue, sans exécuter les scénarios."
 
   (cli-options [opts]
-               (conj opts
-                     [nil "--dry-run" "Check that every selected step resolves a step definition, without running anything."]))
+               (-> opts
+                   (conj [nil "--dry-run" "Check that every selected step resolves a step definition, without running anything."])
+                   (conj [nil "--unused-glues" "With --dry-run, also list the step definitions no selected step uses."])))
 
   (config [config]
-          (cond-> config
-            (:dry-run (:kaocha/cli-options config)) (assoc ::enabled? true)))
+          (let [{:keys [dry-run unused-glues]} (:kaocha/cli-options config)]
+            (cond-> config
+              dry-run      (assoc ::enabled? true)
+              unused-glues (assoc ::unused? true))))
 
   (post-load [test-plan]
              (if (::enabled? test-plan)
@@ -57,10 +75,15 @@
                      scenarios (mapcat ::doc/scenarios features)
                      steps     (mapcat :steps scenarios)
                      missing   (undefined-steps test-plan)
+                     unused    (unused-glues steps)
                      plan      (update test-plan :kaocha.test-plan/tests
                                        (partial mapv #(assoc % ::testable/skip true)))]
-                 (println (format "Dry run: %d feature(s), %d scenario(s), %d step(s), %d undefined."
-                                  (count features) (count scenarios) (count steps) (count missing)))
+                 (println (format "Dry run: %d feature(s), %d scenario(s), %d step(s), %d undefined, %d unused glue(s)."
+                                  (count features) (count scenarios) (count steps) (count missing) (count unused)))
+                 (when (and (seq unused) (::unused? test-plan))
+                   (println)
+                   (println "Unused step definitions:")
+                   (println (unused-report unused)))
                  (when (seq missing)
                    (println)
                    (println (report missing))

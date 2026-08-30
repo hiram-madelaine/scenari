@@ -3,6 +3,7 @@
             [clojure.test :as t :refer [is]]
             [scenari.v2.core :as v2]
             [scenari.v2.test :as sc-test]
+            [scenari.v2.glue :as glue]
             [kaocha.type.scenari]
             [kaocha.testable :as testable]
             [kaocha.plugin.filter :as kfilter]
@@ -365,7 +366,13 @@
             missing (sdry/undefined-steps plan)]
         (is (= [["f" "s" "When ça manque"]]
                (map (fn [[f s step]] [f s (:raw step)]) missing)))
-        (is (= "  f > s\n    When ça manque" (sdry/report missing)))))))
+        (is (= "  f > s\n    When ça manque" (sdry/report missing)))))
+
+    (t/testing "l'inverse : un glue qu'aucun step sélectionné n'utilise"
+      (let [g (first (filter #(= "a number {int}" (:step %)) (glue/all-glues)))]
+        (is (some? g))
+        (is (some #{g} (sdry/unused-glues [])))
+        (is (not (some #{g} (sdry/unused-glues [{:glue {:ref (:ref g)}}]))))))))
 
 (t/deftest alternation-var-name-test
   (t/testing "l'alternance met une barre oblique dans le nom du var, ce qui en
