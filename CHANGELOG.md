@@ -15,6 +15,10 @@ Elle est écrite depuis le test-plan, donc après `--focus`, `--focus-meta` et
 exécuté — c'est de la doc statique, pas un rapport de run, et kaocha annonce
 donc que tous les tests ont été skippés.
 
+`--doc-report target/report.html` produit le même document, mais après
+exécution : chaque feature, scénario et step y porte son statut (pastille,
+liseré, sommaire coloré) et un step en échec affiche son message d'erreur.
+
 `--tags "@smoke and not @wip"`, the cucumber tag expression syntax, through the
 new `:kaocha.plugin/scenari-tags` kaocha plugin. The expression is parsed by
 `io.cucumber/tag-expressions` — cucumber's own — and evaluated per scenario, on

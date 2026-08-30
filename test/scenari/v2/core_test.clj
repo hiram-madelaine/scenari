@@ -318,7 +318,27 @@
                             "a &lt;b&gt; feature")))
 
     (t/testing "une suite entièrement skippée ne documente rien"
-      (is (empty? (sdoc/selected-features (plan "@nope")))))))
+      (is (empty? (sdoc/selected-features (plan "@nope")))))
+
+    (t/testing "--doc-report : le même walk lit l'arbre de résultats, et le
+    statut de chaque scénario et de chaque step est rendu"
+      (let [result {:kaocha.result/tests
+                    [{:kaocha.result/tests
+                      [{::testable/type    :kaocha.type/scenari-feature
+                        ::testable/id      :ns/f
+                        ::testable/desc    "f"
+                        :kaocha.result/tests
+                        [{::testable/id   :ns.f/s
+                          ::testable/desc "s"
+                          :status         :fail
+                          :steps          [{:sentence-keyword :given :sentence "ça marche" :status :success}
+                                           {:sentence-keyword :then :sentence "ça casse" :status :fail
+                                            :exception        (ex-info "boom" {})}
+                                           {:sentence-keyword :then :sentence "jamais atteint" :status :pending}]}]}]}]}
+            html   (sdoc/document (sdoc/selected-features result))]
+        (is (string/includes? html "<span class=\"badge fail\">fail</span>"))
+        (is (string/includes? html "<li class=\"step pending\">"))
+        (is (string/includes? html "<pre class=\"error\">boom</pre>"))))))
 
 (t/deftest alternation-var-name-test
   (t/testing "l'alternance met une barre oblique dans le nom du var, ce qui en
