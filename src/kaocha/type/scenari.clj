@@ -48,7 +48,9 @@
             ;; scenario would otherwise share each other's failures - and junit
             ;; reports `classname` as the id's namespace
             ::testable/id      (keyword (str (namespace feature-id) "." (name feature-id)) id)
-            ;; keeps `--focus <scenario-name>` working
+            ;; keeps `--focus <scenario-name>` working. `with-unique-ids` numbers
+            ;; a repeated id but leaves this alias bare, so every row of an
+            ;; Examples table answers to the scenario's name - see its docstring.
             ::testable/aliases [(keyword id)]
             ;; gherkin @annotations of the scenario, so `--focus-meta`/`--skip-meta`
             ;; also work one level below the feature
@@ -59,7 +61,16 @@
   "Kaocha addresses a leaf by its id, and every row of an Examples table gives a
   scenario with the same name as soon as that name carries no <placeholder> -
   the common case. Number the repeats, so --focus can reach a single row and the
-  report does not show N indistinguishable leaves."
+  report does not show N indistinguishable leaves.
+
+  Only the id is numbered, not the bare-name alias `scenario->testable` sets:
+  `--focus constant-name` runs *every* row of that Examples table, while
+  `--focus :the.ns.the-feature/constant-name-2` runs the second one alone. Which
+  is the useful pair - a scenario name names the whole table. Careful with
+  repeated --focus though, they are OR-ed into one list, and a testable that
+  matches any of them drops the filter for its whole subtree
+  (kaocha.plugin.filter/filter-testable): `--focus :scenario --focus
+  constant-name` matches the suite id and runs all of it, not one scenario."
   [testables]
   (second (reduce (fn [[seen acc] testable]
                     (let [id (::testable/id testable)

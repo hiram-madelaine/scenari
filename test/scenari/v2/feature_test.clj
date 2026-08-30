@@ -79,6 +79,11 @@ Feature: tagged feature
             :scenari.v2.feature-test.outline-feature/constant-name-2]
            (map :kaocha.testable/id
                 (:kaocha.test-plan/tests (loaded-feature ::outline-feature))))))
+  (testing "the bare-name alias is not numbered: a scenario name names the whole
+  Examples table, so --focus constant-name runs both rows"
+    (is (= [[:constant-name] [:constant-name]]
+           (map :kaocha.testable/aliases
+                (:kaocha.test-plan/tests (loaded-feature ::outline-feature))))))
   (testing "a scenario id is unique across features: kaocha attaches the run's
   events to a testable by id equality, so a same-named scenario in another
   feature would show its failures too"
