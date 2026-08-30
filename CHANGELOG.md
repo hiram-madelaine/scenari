@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file. This change
 
 ## Added ##
 
+`--doc-html target/features.html`, through the new
+`:kaocha.plugin/scenari-doc` plugin: la documentation des scénarios en un
+document HTML — sommaire cliquable, une ancre par scénario, tags, descriptions,
+steps avec leurs datatables et docstrings.
+
+Elle est écrite depuis le test-plan, donc après `--focus`, `--focus-meta` et
+`--tags` : ce qui aurait tourné est exactement ce qui est documenté. Rien n'est
+exécuté — c'est de la doc statique, pas un rapport de run, et kaocha annonce
+donc que tous les tests ont été skippés.
+
 `--tags "@smoke and not @wip"`, the cucumber tag expression syntax, through the
 new `:kaocha.plugin/scenari-tags` kaocha plugin. The expression is parsed by
 `io.cucumber/tag-expressions` — cucumber's own — and evaluated per scenario, on

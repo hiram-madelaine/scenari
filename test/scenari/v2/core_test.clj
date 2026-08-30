@@ -1,11 +1,13 @@
 (ns scenari.v2.core-test
-  (:require [clojure.test :as t :refer [is]]
+  (:require [clojure.string :as string]
+            [clojure.test :as t :refer [is]]
             [scenari.v2.core :as v2]
             [scenari.v2.test :as sc-test]
             [kaocha.type.scenari]
             [kaocha.testable :as testable]
             [kaocha.plugin.filter :as kfilter]
             [kaocha.plugin.scenari-tags :as stags]
+            [kaocha.plugin.scenari-doc :as sdoc]
             [kaocha.repl :as krepl]
             [testit.core :refer :all])
   (:import [io.cucumber.tagexpressions TagExpressionParser]))
@@ -282,6 +284,41 @@
 
     (t/testing "an invalid expression throws, so the message reaches the user"
       (is (thrown? Exception (TagExpressionParser/parse "@a and"))))))
+
+(t/deftest scenari-doc-test
+  (let [suite     (testable/-load {::testable/type                 :kaocha.type/scenari
+                                   :kaocha/source-paths            ["src"]
+                                   :kaocha/test-paths              ["test/scenari/v2"]
+                                   :kaocha.type.scenari/glue-paths ["scenari/v2"]})
+        plan      (fn [expr] {:kaocha.test-plan/tests
+                              [(stags/filter-testable (TagExpressionParser/parse expr) suite)]})
+        features  (sdoc/selected-features (plan "@shared"))
+        html      (sdoc/document features)]
+
+    (t/testing "la doc ne retient que les scénarios laissés par les filtres"
+      (is (= [["mixed tags" ["picked scenario" "plain scenario"]]]
+             (for [f features]
+               [(::testable/desc f) (map ::testable/desc (:kaocha.test-plan/tests f))]))))
+
+    (t/testing "chaque scénario a son ancre et son lien dans le sommaire"
+      (doseq [scenario (mapcat :kaocha.test-plan/tests features)
+              :let [a (#'sdoc/anchor (::testable/id scenario))]]
+        (is (string/includes? html (str "id=\"" a "\"")))
+        (is (string/includes? html (str "href=\"#" a "\"")))))
+
+    (t/testing "les steps et leurs blocs sont rendus, le HTML est échappé"
+      (is (string/includes? html "<span class=\"kw\">Then</span>"))
+      (is (string/includes? (sdoc/document (sdoc/selected-features {:kaocha.test-plan/tests [suite]}))
+                            "<th>size</th>")
+          "la datatable d'un step devient un vrai tableau")
+      (is (string/includes? (sdoc/document
+                             [{::testable/id   :ns/f
+                               ::testable/desc "a <b> feature"
+                               :kaocha.test-plan/tests []}])
+                            "a &lt;b&gt; feature")))
+
+    (t/testing "une suite entièrement skippée ne documente rien"
+      (is (empty? (sdoc/selected-features (plan "@nope")))))))
 
 (t/deftest alternation-var-name-test
   (t/testing "l'alternance met une barre oblique dans le nom du var, ce qui en
