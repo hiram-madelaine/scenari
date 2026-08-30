@@ -129,7 +129,16 @@
       ;; after a failure still show up
       (t/do-report {:type :begin-step :step step})
       (when (= :fail (:status step))
-        (t/do-report {:type :step-failed :exception (:exception step)})))
+        (t/do-report {:type :step-failed :exception (:exception step)})
+        ;; a step failing on an `is` already emitted its own :fail; a step that
+        ;; throws emitted nothing kaocha knows how to read - junit-xml only
+        ;; renders :kaocha/fail-type events, so the scenario stayed green in CI,
+        ;; and the end-of-run fail-summary never mentioned it
+        (when-let [e (:exception step)]
+          (t/do-report {:type     :fail
+                        :message  (str "Step threw: " (:raw step))
+                        :expected "the step to return"
+                        :actual   e}))))
     (-> testable
         (merge {:kaocha.result/count 1
                 :kaocha.result/pass  (if (= (:status testable) :success) 1 0)

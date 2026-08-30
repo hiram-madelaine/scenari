@@ -111,6 +111,23 @@ Feature: tagged feature
       (testable/-run feature {})
       (is (= 3 @post-run-atom)))))
 
+(v2/defwhen "the step blows up" [_] (throw (ex-info "boom" {})))
+
+(deftest throwing-step-reports-a-kaocha-failure-test
+  (testing "a step that throws must emit an event kaocha reads as a failure:
+  junit-xml only renders :kaocha/fail-type events, so the scenario used to come
+  out green in CI, and fail-summary never mentioned it"
+    (let [events   (atom [])
+          scenario (-> (v2/->feature-ast "Feature: f\n  Scenario: s\n    When the step blows up" {} *ns*)
+                       :scenarios
+                       first
+                       (merge {:kaocha.testable/type :kaocha.type/scenari-scenario
+                               :kaocha.testable/id   ::throwing-scenario}))]
+      (binding [t/report (fn [m] (swap! events conj m))]
+        (testable/-run scenario {}))
+      (is (= 1 (count (filter #(and (= :fail (:type %)) (instance? Throwable (:actual %)))
+                              @events)))))))
+
 (deftest run-hooks-test
   (testing "the teardown runs even when the body throws - a report, an ambiguous
   glue or a pre-run hook can throw past run-step's catch, and that is the very
