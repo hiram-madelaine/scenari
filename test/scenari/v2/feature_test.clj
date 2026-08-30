@@ -47,17 +47,20 @@ Feature: tagged feature
       Then My initial state contains foo"
   {:default-scenario-state {:foo 1}})
 
+(defn- loaded-features
+  "Every feature testable kaocha builds, as ./test.sh would load them."
+  []
+  (:kaocha.test-plan/tests
+   (testable/load {:kaocha.testable/type           :kaocha.type/scenari
+                   :kaocha.testable/id             :scenario
+                   :kaocha/source-paths            ["src"]
+                   :kaocha/test-paths              ["test/scenari/v2"]
+                   :kaocha.type.scenari/glue-paths ["test/scenari/v2"]})))
+
 (defn- loaded-feature
   "The feature testable kaocha builds for `id`, as ./test.sh would load it."
   [id]
-  (->> (testable/load {:kaocha.testable/type           :kaocha.type/scenari
-                       :kaocha.testable/id             :scenario
-                       :kaocha/source-paths            ["src"]
-                       :kaocha/test-paths              ["test/scenari/v2"]
-                       :kaocha.type.scenari/glue-paths ["test/scenari/v2"]})
-       :kaocha.test-plan/tests
-       (filter #(= id (:kaocha.testable/id %)))
-       first))
+  (first (filter #(= id (:kaocha.testable/id %)) (loaded-features))))
 
 (v2/deffeature outline-feature
   "Feature: one scenario per Examples row
@@ -72,9 +75,16 @@ Feature: tagged feature
 (deftest outline-scenario-ids-test
   (testing "each Examples row must stay addressable: kaocha keys a leaf by its
   id, and a scenario name with no <placeholder> gives every row the same one"
-    (is (= [:constant-name :constant-name-2]
+    (is (= [:scenari.v2.feature-test.outline-feature/constant-name
+            :scenari.v2.feature-test.outline-feature/constant-name-2]
            (map :kaocha.testable/id
-                (:kaocha.test-plan/tests (loaded-feature ::outline-feature)))))))
+                (:kaocha.test-plan/tests (loaded-feature ::outline-feature))))))
+  (testing "a scenario id is unique across features: kaocha attaches the run's
+  events to a testable by id equality, so a same-named scenario in another
+  feature would show its failures too"
+    (let [ids (map :kaocha.testable/id
+                   (mapcat :kaocha.test-plan/tests (loaded-features)))]
+      (is (apply distinct? ids)))))
 
 (def post-run-atom (atom 0))
 (defn post-run-side-effect [] (swap! post-run-atom inc))

@@ -27,13 +27,6 @@
        (mapcat #(map meta (vals %)))
        (filter #(:scenari/raw-feature %))))
 
-(defn path->id [path]
-  (-> path
-      (str/replace #"/" ".")
-      (str/replace #"_" "-")
-      (str/replace #" " "_")
-      (str/replace #"\.feature$" "")))
-
 (defn ->id [s]
   (-> s
       str/trim
@@ -46,16 +39,21 @@
       str/trim
       (str/replace #" " "-")))
 
-(defn scenario->testable [document scenario]
-  (merge scenario
-         {::testable/type :kaocha.type/scenari-scenario
-          ::testable/id   (keyword (scenario->id scenario))
-          ;; gherkin @annotations of the scenario, so `--focus-meta`/`--skip-meta`
-          ;; also work one level below the feature
-          ::testable/meta (zipmap (map keyword (:annotations scenario)) (repeat true))
-          ::testable/desc (or (:scenario-name scenario) "")
-          ::feature       (keyword (path->id (str (:project-directory document) (:file document))))
-          ::file          (str (:project-directory document) (:file document))}))
+(defn scenario->testable [feature-id scenario]
+  (let [id (scenario->id scenario)]
+    (merge scenario
+           {::testable/type    :kaocha.type/scenari-scenario
+            ;; qualified by its feature: kaocha attaches the run's events to a
+            ;; testable by id equality, so two features with a same-named
+            ;; scenario would otherwise share each other's failures - and junit
+            ;; reports `classname` as the id's namespace
+            ::testable/id      (keyword (str (namespace feature-id) "." (name feature-id)) id)
+            ;; keeps `--focus <scenario-name>` working
+            ::testable/aliases [(keyword id)]
+            ;; gherkin @annotations of the scenario, so `--focus-meta`/`--skip-meta`
+            ;; also work one level below the feature
+            ::testable/meta    (zipmap (map keyword (:annotations scenario)) (repeat true))
+            ::testable/desc    (or (:scenario-name scenario) "")})))
 
 (defn- with-unique-ids
   "Kaocha addresses a leaf by its id, and every row of an Examples table gives a
@@ -69,7 +67,7 @@
                       [(assoc seen id n)
                        (conj acc (cond-> testable
                                    (> n 1) (assoc ::testable/id
-                                                  (keyword (str (name id) "-" n)))))]))
+                                                  (keyword (namespace id) (str (name id) "-" n)))))]))
                   [{} []]
                   testables)))
 
@@ -83,10 +81,10 @@
   (require-all-ns (::glue-paths testable))
   (let [tests (for [test-path (:kaocha/test-paths testable)
                     {{:keys [feature scenarios pre-run post-run annotations description]} :scenari/feature-ast
-                     feature-content                                 :scenari/raw-feature
-                     :as                                             feature-meta} (find-features-meta-in-dir test-path)]
+                     :as                                             feature-meta} (find-features-meta-in-dir test-path)
+                    :let [feature-id (keyword (str (:ns feature-meta)) (str (:name feature-meta)))]]
                 {::testable/type         :kaocha.type/scenari-feature
-                 ::testable/id           (keyword (str (:ns feature-meta)) (str (:name feature-meta)))
+                 ::testable/id           feature-id
                  ;; allows `--focus <ns>` to select every feature of a namespace
                  ::testable/aliases     [(keyword (str (:ns feature-meta)))]
                  ;; var metadata (deffeature ^:tag ...) + gherkin @annotations,
@@ -94,7 +92,7 @@
                  ::testable/meta         (merge (dissoc feature-meta :scenari/raw-feature :scenari/feature-ast :test)
                                                 (zipmap (map keyword annotations) (repeat true)))
                  ::testable/desc         feature
-                 :kaocha.test-plan/tests (with-unique-ids (map #(scenario->testable feature-content %) scenarios))
+                 :kaocha.test-plan/tests (with-unique-ids (map #(scenario->testable feature-id %) scenarios))
                  ::annotations           annotations
                  ::description           description
                  ::pre-run               pre-run
@@ -114,14 +112,14 @@
                 :annotations (::annotations testable)
                 :description (::description testable)})
   (sc/run-hooks
-    {:pre-run (::pre-run testable) :post-run (::post-run testable)}
-    (fn []
-      (let [results (testable/run-testables (:kaocha.test-plan/tests testable) test-plan)
-            testable (-> testable
-                         (dissoc :kaocha.test-plan/tests)
-                         (assoc :kaocha.result/tests results))]
-        (t/do-report {:type :end-feature})
-        testable))))
+   {:pre-run (::pre-run testable) :post-run (::post-run testable)}
+   (fn []
+     (let [results (testable/run-testables (:kaocha.test-plan/tests testable) test-plan)
+           testable (-> testable
+                        (dissoc :kaocha.test-plan/tests)
+                        (assoc :kaocha.result/tests results))]
+       (t/do-report {:type :end-feature})
+       testable))))
 
 (defmethod testable/-run :kaocha.type/scenari-scenario [testable test-plan]
   (t/do-report {:type :begin-scenario :scenario testable})
