@@ -3,6 +3,19 @@ All notable changes to this project will be documented in this file. This change
 
 # [Unreleased] #
 
+## Fixed ##
+
+A step that throws now produces a `<failure>` in the junit-xml report and shows
+up in kaocha's end-of-run summary. Only a step failing on an `is` did before —
+one that threw left its testcase green in CI.
+
+A scenario's kaocha id is qualified by its feature
+(`:my.ns.my-feature/scenario-name` instead of `:scenario-name`). Kaocha matches
+a run's events to a testable by id equality, so two features with a same-named
+scenario used to show each other's failures; junit's `classname` was empty on
+every testcase too. `--focus <scenario-name>` still works, the bare name is kept
+as an alias.
+
 ## Changed ##
 
 A step's arguments are the captures of its cucumber expression, converted by
