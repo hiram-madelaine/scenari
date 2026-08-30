@@ -10,8 +10,7 @@
              io.cucumber/cucumber-expressions    {:mvn/version "20.1.0"}
              commons-io/commons-io               {:mvn/version "2.6"}
              lambdaisland/kaocha                 {:mvn/version "1.87.1366"}
-             org.clojure/tools.namespace         {:mvn/version "0.3.1"}
-             }
+             org.clojure/tools.namespace         {:mvn/version "0.3.1"}}
 
  :aliases   {:artifact-name {:extra-deps {metav/metav {:git/url "https://github.com/jgrodziski/metav/"
                                                        :sha     "83dbd1fba42e868783a93c1e58b2a4d3c2a5055b"}}
@@ -30,9 +29,10 @@
                              :ns-default  build}
 
              :test          {:extra-paths ["test"]
-                             :extra-deps  {org.clojure/test.check {:mvn/version "1.1.0"}
-                                           metosin/testit         {:mvn/version "0.4.0"}
-                                           lambdaisland/kaocha    {:mvn/version "1.0.732"}}}
+                             :extra-deps  {org.clojure/test.check         {:mvn/version "1.1.0"}
+                                           metosin/testit                {:mvn/version "0.4.0"}
+                                           lambdaisland/kaocha           {:mvn/version "1.0.732"}
+                                           lambdaisland/kaocha-junit-xml {:mvn/version "1.17.101"}}}
              :runner        {:extra-deps {com.cognitect/test-runner {:git/url "https://github.com/cognitect-labs/test-runner"
                                                                      :sha     "76568540e7f40268ad2b646110f237a60295fa3c"}}
                              :main-opts  ["-m" "cognitect.test-runner" "-d" "test"]}}}
